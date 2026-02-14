@@ -1,0 +1,18 @@
+console.log('🚀 Starting test: TestCase_1771072755600');
+
+  // Step 1: Navigate to page
+  console.log('📋 Step 1: Navigate to https://automationexercise.com/');
+  await page.goto('https://automationexercise.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+  console.log('✅ Page loaded');
+
+  // Step 2: click Producte
+  console.log('📋 Step 2: click Producte');
+  const btn_producte_0 = page.locator('button, a, [role="button"]').filter({ hasText: 'Producte' }).first();
+  await btn_producte_0.waitFor({ state: 'visible', timeout: 10000 });
+  await btn_producte_0.click();
+  console.log('✅ Producte clicked');
+  await page.waitForTimeout(1000);
+
+  // Take final screenshot
+  await page.screenshot({ path: 'test-results/TestCase_1771072755600-final.png', fullPage: true });
+  console.log('✅ Test completed successfully');

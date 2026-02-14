@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced AI Test Generator - Flaky Analysis & Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-shadow {
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        .tab-button.active {
+            border-color: #3b82f6 !important;
+            color: #3b82f6 !important;
+        }
+        .tab-content.hidden {
+            display: none;
+        }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .test-case {
+            border-left: 4px solid #3b82f6;
+            background: #f8fafc;
+        }
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-robot text-3xl"></i>
+                    <div>
+                        <h1 class="text-2xl font-bold">Enhanced AI Test Generator</h1>
+                        <p class="text-blue-100">Professional QA with Flaky Analysis & Dashboard</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="bg-blue-500 px-3 py-1 rounded-full text-sm">v2.0.0</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-8">
+        <!-- Navigation Tabs -->
+        <div class="bg-white rounded-lg card-shadow mb-8">
+            <div class="border-b border-gray-200">
+                <nav class="flex space-x-8 px-6" aria-label="Tabs">
+                    <button id="tab-generate" class="tab-button active border-b-2 border-blue-500 py-4 px-1 text-sm font-medium text-blue-600">
+                        <i class="fas fa-magic mr-2"></i>Generate Tests
+                    </button>
+                    <button id="tab-flaky" class="tab-button border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        <i class="fas fa-bug mr-2"></i>Flaky Test Analysis
+                    </button>
+                    <button id="tab-rootcause" class="tab-button border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        <i class="fas fa-search mr-2"></i>Root Cause Analysis
+                    </button>
+                    <button id="tab-dashboard" class="tab-button border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        <i class="fas fa-chart-line mr-2"></i>Test Dashboard
+                    </button>
+                    <button id="tab-coverage" class="tab-button border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        <i class="fas fa-chart-pie mr-2"></i>Coverage Visualizer
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Tab Content: Generate Tests -->
+        <div id="content-generate" class="tab-content">
+            <!-- Input Form -->
+            <div class="bg-white rounded-lg card-shadow p-8 mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i class="fas fa-cog text-blue-500 mr-3"></i>
+                    Generate Professional Test Cases
+                </h2>
+                
+                <form id="testGenerationForm" class="space-y-6">
+                    <!-- Website URL -->
+                    <div>
+                        <label for="websiteUrl" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-globe mr-2"></i>Website URL *
+                        </label>
+                        <input type="url" id="websiteUrl" name="websiteUrl" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="https://example.com/login">
+                        <p class="text-sm text-gray-500 mt-1">Enter the URL of the webpage you want to test</p>
+                    </div>
+
+                    <!-- Test Types -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-3">
+                            <i class="fas fa-check-square mr-2"></i>Test Types
+                        </label>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="testTypes" value="functional" checked class="text-blue-500">
+                                <div>
+                                    <div class="font-medium">Functional</div>
+                                    <div class="text-sm text-gray-500">Core functionality</div>
+                                </div>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="testTypes" value="inputValidation" checked class="text-blue-500">
+                                <div>
+                                    <div class="font-medium">Input Validation</div>
+                                    <div class="text-sm text-gray-500">Form validation</div>
+                                </div>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="testTypes" value="api" class="text-blue-500">
+                                <div>
+                                    <div class="font-medium">API Testing</div>
+                                    <div class="text-sm text-gray-500">API endpoints</div>
+                                </div>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="testTypes" value="accessibility" class="text-blue-500">
+                                <div>
+                                    <div class="font-medium">Accessibility</div>
+                                    <div class="text-sm text-gray-500">WCAG compliance</div>
+                                </div>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="testTypes" value="performance" class="text-blue-500">
+                                <div>
+                                    <div class="font-medium">Performance</div>
+                                    <div class="text-sm text-gray-500">Load times</div>
+                                </div>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="testTypes" value="security" class="text-blue-500">
+                                <div>
+                                    <div class="font-medium">Security</div>
+                                    <div class="text-sm text-gray-500">Vulnerabilities</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Output Format -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="outputFormat" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-file-code mr-2"></i>Output Format
+                            </label>
+                            <select id="outputFormat" name="outputFormat" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="professional">Professional QA Format</option>
+                                <option value="playwright">Playwright Tests</option>
+                                <option value="selenium">Selenium Tests</option>
+                                <option value="cypress">Cypress Tests</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="priority" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-exclamation-triangle mr-2"></i>Priority Level
+                            </label>
+                            <select id="priority" name="priority" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="Critical">Critical</option>
+                                <option value="High" selected>High</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Low">Low</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Options -->
+                    <div class="border-t pt-6">
+                        <h3 class="text-lg font-medium text-gray-800 mb-4">Advanced Options</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label for="testingIntent" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-bullseye mr-2"></i>Testing Intent (Optional)
+                                </label>
+                                <textarea id="testingIntent" name="testingIntent" rows="4"
+                                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                          placeholder="Describe what you want to test in detail. You can use multiple lines:&#10;&#10;- Test user authentication and security&#10;- Verify form validation works correctly&#10;- Check error handling for invalid inputs&#10;- Test responsive design on mobile devices"></textarea>
+                                <p class="text-sm text-gray-500 mt-1">Provide detailed testing requirements, one per line or in paragraph form</p>
+                            </div>
+                            
+                            <div class="flex flex-wrap gap-4">
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" id="includeAccessibility" name="includeAccessibility" class="text-blue-500">
+                                    <span class="text-sm">Include Accessibility Tests</span>
+                                </label>
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" id="includePerformance" name="includePerformance" class="text-blue-500">
+                                    <span class="text-sm">Include Performance Tests</span>
+                                </label>
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" id="includeSecurity" name="includeSecurity" class="text-blue-500">
+                                    <span class="text-sm">Include Security Tests</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="flex justify-center pt-6">
+                        <button type="submit" id="generateBtn" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-lg transition duration-200 flex items-center space-x-3">
+                            <i class="fas fa-magic"></i>
+                            <span>Generate Test Cases</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="hidden bg-white rounded-lg card-shadow p-8 mb-8">
+                <div class="text-center">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Generating Test Cases...</h3>
+                    <p class="text-gray-600" id="loadingMessage">Analyzing your website with AI...</p>
+                    <div class="mt-4 bg-gray-200 rounded-full h-2">
+                        <div id="progressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="resultsSection" class="hidden">
+                <!-- Analysis Summary -->
+                <div id="analysisSummary" class="bg-white rounded-lg card-shadow p-8 mb-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <i class="fas fa-chart-line text-green-500 mr-3"></i>
+                        Analysis Summary
+                    </h2>
+                    <div id="analysisContent" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Analysis content will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Generated Tests -->
+                <div id="generatedTests" class="bg-white rounded-lg card-shadow p-8 mb-8">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-list-check text-blue-500 mr-3"></i>
+                            Generated Test Cases
+                        </h2>
+                        <div class="flex space-x-2">
+                            <button id="downloadBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
+                                <i class="fas fa-download"></i>
+                                <span>Download</span>
+                            </button>
+                            <button id="copyBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
+                                <i class="fas fa-copy"></i>
+                                <span>Copy</span>
+                            </button>
+                            <button id="runTestsBtn" class="hidden bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
+                                <i class="fas fa-play"></i>
+                                <span>Run Tests</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="testCasesContent">
+                        <!-- Test cases will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Playwright Code Display -->
+                <div id="playwrightCode" class="hidden bg-white rounded-lg card-shadow p-8 mb-8">
+                    <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                        <i class="fas fa-code text-purple-500 mr-3"></i>
+                        Generated Playwright Code
+                    </h3>
+                    <div class="relative">
+                        <button id="copyCodeBtn" class="absolute top-4 right-4 bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm">
+                            <i class="fas fa-copy mr-1"></i>Copy
+                        </button>
+                        <pre id="codeDisplay" class="code-block p-6 rounded-lg overflow-x-auto text-sm"></pre>
+                    </div>
+                </div>
+
+                <!-- Quality Metrics -->
+                <div id="qualityMetrics" class="bg-white rounded-lg card-shadow p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <i class="fas fa-trophy text-yellow-500 mr-3"></i>
+                        Quality Metrics
+                    </h2>
+                    <div id="metricsContent" class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                        <!-- Metrics will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Flaky Test Analysis -->
+        <div id="content-flaky" class="tab-content hidden">
+            <div class="bg-white rounded-lg card-shadow p-8 mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i class="fas fa-bug text-red-500 mr-3"></i>
+                    Flaky Test Analysis
+                </h2>
+                
+                <div class="mb-6 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                    <h3 class="text-lg font-semibold text-blue-800 mb-2">How Flaky Test Detection Works</h3>
+                    <p class="text-blue-700 text-sm">
+                        A flaky test is one that sometimes passes and sometimes fails without code changes.
+                        The system automatically detects flaky tests by analyzing test execution history.
+                    </p>
+                </div>
+
+                <form id="flakyAnalysisForm" class="space-y-6">
+                    <div>
+                        <label for="testCaseSelect" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-list mr-2"></i>Select Test Case to Analyze
+                        </label>
+                        <select id="testCaseSelect" name="testCaseSelect" required
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                            <option value="">Loading test cases...</option>
+                        </select>
+                        <p class="text-sm text-gray-500 mt-1">Select a test case to analyze its flakiness</p>
+                    </div>
+                    
+                    <div class="flex justify-center space-x-4">
+                        <button type="button" id="analyzeFlakyBtn" 
+                                class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200 flex items-center space-x-2">
+                            <i class="fas fa-search"></i>
+                            <span>Analyze Flaky Tests</span>
+                        </button>
+                        
+                        <button type="button" id="viewFlakyDashboardBtn" 
+                                class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200 flex items-center space-x-2">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>View All Flaky Tests</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Flaky Analysis Results -->
+            <div id="flakyResults" class="hidden bg-white rounded-lg card-shadow p-8 mb-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i class="fas fa-chart-line text-red-500 mr-3"></i>
+                    Flaky Test Analysis Results
+                </h3>
+                <div id="flakyResultsContent">
+                    <!-- Results will be populated here -->
+                </div>
+            </div>
+
+            <!-- Flaky Dashboard -->
+            <div id="flakyDashboard" class="hidden bg-white rounded-lg card-shadow p-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i class="fas fa-tachometer-alt text-purple-500 mr-3"></i>
+                    Flaky Test Dashboard
+                </h3>
+                <div id="flakyDashboardContent">
+                    <!-- Dashboard content will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Root Cause Analysis -->
+        <div id="content-rootcause" class="tab-content hidden">
+            <div class="bg-white rounded-lg card-shadow p-8 mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i class="fas fa-search text-orange-500 mr-3"></i>
+                    Root Cause Analysis
+                </h2>
+                
+                <div class="mb-6 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                    <h3 class="text-lg font-semibold text-blue-800 mb-2">How to Use Root Cause Analysis</h3>
+                    <p class="text-blue-700 mb-2">Root cause analysis is automatically performed when tests fail during enhanced execution. You can also manually analyze test failures:</p>
+                    <ul class="list-disc list-inside text-blue-600 text-sm space-y-1">
+                        <li>Run tests using the "Run Tests" button in the Generate Tests tab</li>
+                        <li>Failed tests will automatically trigger root cause analysis</li>
+                        <li>View detailed analysis results in the test execution reports</li>
+                        <li>Use the manual analysis form below for external test failures</li>
+                    </ul>
+                </div>
+
+                <!-- Manual Root Cause Analysis Form -->
+                <form id="rootCauseAnalysisForm" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="testId" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-tag mr-2"></i>Test ID
+                            </label>
+                            <input type="text" id="testId" name="testId" required
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                   placeholder="e.g., LOGIN_TEST_001">
+                        </div>
+                        
+                        <div>
+                            <label for="errorType" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-exclamation-triangle mr-2"></i>Error Type
+                            </label>
+                            <select id="errorType" name="errorType" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500">
+                                <option value="timeout">Timeout Error</option>
+                                <option value="element_not_found">Element Not Found</option>
+                                <option value="assertion_failure">Assertion Failure</option>
+                                <option value="network_error">Network Error</option>
+                                <option value="javascript_error">JavaScript Error</option>
+                                <option value="unknown">Unknown Error</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label for="errorMessage" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-exclamation-circle mr-2"></i>Error Message
+                        </label>
+                        <textarea id="errorMessage" name="errorMessage" rows="3" required
+                                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono text-sm"
+                                  placeholder="Paste the error message here..."></textarea>
+                    </div>
+                    
+                    <div>
+                        <label for="stackTrace" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-code mr-2"></i>Stack Trace
+                        </label>
+                        <textarea id="stackTrace" name="stackTrace" rows="8" required
+                                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono text-sm"
+                                  placeholder="Paste the complete stack trace here..."></textarea>
+                    </div>
+                    
+                    <div class="flex justify-center space-x-4">
+                        <button type="submit" id="analyzeRootCauseBtn" 
+                                class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200 flex items-center space-x-2">
+                            <i class="fas fa-search"></i>
+                            <span>Analyze Root Cause</span>
+                        </button>
+                        
+                        <button type="button" id="viewRecentAnalysesBtn" 
+                                class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200 flex items-center space-x-2">
+                            <i class="fas fa-history"></i>
+                            <span>View Recent Analyses</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Root Cause Analysis Results -->
+            <div id="rootCauseResults" class="hidden bg-white rounded-lg card-shadow p-8 mb-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i class="fas fa-chart-line text-orange-500 mr-3"></i>
+                    Root Cause Analysis Results
+                </h3>
+                <div id="rootCauseResultsContent">
+                    <!-- Results will be populated here -->
+                </div>
+            </div>
+
+            <!-- Recent Analyses -->
+            <div id="recentAnalyses" class="hidden bg-white rounded-lg card-shadow p-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i class="fas fa-history text-purple-500 mr-3"></i>
+                    Recent Root Cause Analyses
+                </h3>
+                <div id="recentAnalysesContent">
+                    <!-- Recent analyses will be populated here -->
+                </div>
+            </div>
+
+            <!-- Comprehensive Analysis Report -->
+            <div id="comprehensiveAnalysisReport" class="hidden bg-white rounded-lg card-shadow p-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i class="fas fa-file-alt text-indigo-500 mr-3"></i>
+                    Comprehensive Analysis Report
+                </h3>
+                <div id="comprehensiveAnalysisContent">
+                    <!-- Comprehensive report will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Test Dashboard -->
+        <div id="content-dashboard" class="tab-content hidden">
+            <div id="dashboardContent" class="bg-white rounded-lg card-shadow p-8 mb-8">
+                <!-- Dashboard content will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Tab Content: Coverage Visualizer -->
+        <div id="content-coverage" class="tab-content hidden">
+            <div id="coverageVisualizerContent" class="bg-white rounded-lg card-shadow p-8 mb-8">
+                <!-- Coverage content will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="hidden bg-white rounded-lg card-shadow p-8 mb-8">
+            <div class="text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <h3 class="text-xl font-semibold text-gray-800 mb-2">Processing...</h3>
+                <p class="text-gray-600" id="loadingMessage">Please wait...</p>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" class="hidden bg-red-50 border border-red-200 rounded-lg p-8 mb-8">
+            <div class="flex items-center mb-4">
+                <i class="fas fa-exclamation-triangle text-red-500 text-2xl mr-3"></i>
+                <h3 class="text-xl font-semibold text-red-800">Error</h3>
+            </div>
+            <p id="errorMessage" class="text-red-700 mb-4"></p>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 mt-16">
+        <div class="container mx-auto px-6 text-center">
+            <p>&copy; 2024 Enhanced AI Test Generator. Professional QA with Advanced Analytics.</p>
+            <p class="text-gray-400 mt-2">Flaky Test Analysis • Test Dashboard • Coverage Visualizer</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
