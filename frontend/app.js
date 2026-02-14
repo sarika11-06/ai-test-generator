@@ -1,6 +1,7 @@
 class EnhancedAITestGenerator {
     constructor() {
-        this.apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+        // Get API URL from window variable or fallback to localhost
+        this.apiBaseUrl = window.API_BASE_URL || 'http://localhost:3001/api';
         this.currentTestSuite = null;
         this.currentPlaywrightCode = null;
         this.init();
