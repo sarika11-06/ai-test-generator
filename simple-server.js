@@ -70,20 +70,8 @@ initializeApp();
 
 // Middleware
 app.use(cors({
-  origin: [
-    'http://localhost:3000', 
-    'http://127.0.0.1:3000', 
-    'http://localhost:8080', 
-    'http://localhost:3001', 
-    'http://127.0.0.1:3001', 
-    'http://localhost:3003', 
-    'http://127.0.0.1:3003', 
-    'http://localhost:3004', 
-    'http://127.0.0.1:3004',
-    'https://your-netlify-site.netlify.app',  // Add your Netlify domain
-    process.env.FRONTEND_URL  // Add from environment variable
-  ].filter(Boolean),
-  credentials: true
+  origin: '*',  // Allow all origins for now
+  credentials: false
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
