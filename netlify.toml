@@ -1,11 +1,6 @@
 [build]
-  command = "npm run build"
+  command = "echo 'Frontend ready'"
   publish = "frontend"
-
-[[redirects]]
-  from = "/api/*"
-  to = "https://your-backend-url.com/api/:splat"
-  status = 200
 
 [[redirects]]
   from = "/*"
