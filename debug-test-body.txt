@@ -1,53 +1,112 @@
-console.log('🚀 Starting test: TestCase_1771155530530');
+console.log('🚀 Starting test: TestCase_1771165571151');
 
   // Step 1: Navigate to page
   console.log('📋 Step 1: Navigate to https://automationexercise.com/');
   await page.goto('https://automationexercise.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
   console.log('✅ Page loaded');
 
-  // Step 2: click 'Signup / Login'
-  console.log('📋 Step 2: click \'Signup / Login\'');
-  const btn_signup_log_0 = page.locator('button, a, [role="button"]').filter({ hasText: 'Signup / Login' }).first();
-  await btn_signup_log_0.waitFor({ state: 'visible', timeout: 10000 });
-  await btn_signup_log_0.click();
-  console.log('✅ Signup / Login clicked');
+  // Step 2: click 'Women'
+  console.log('📋 Step 2: click \'Women\'');
+  const btn_women_0 = page.locator('button, a, [role="button"]').filter({ hasText: 'Women' }).first();
+  await btn_women_0.waitFor({ state: 'visible', timeout: 10000 });
+  await btn_women_0.click();
+  console.log('✅ Women clicked');
   await page.waitForTimeout(1000);
 
-  // Step 3: verify 'Login to your account'
-  console.log('📋 Step 3: verify \'Login to your account\'');
-  await expect(page.locator('body')).toContainText('Login to your account', { timeout: 10000 });
-  console.log('✅ Verified: Login to your account');
-
-  // Step 4: enter email
-  console.log('📋 Step 4: enter email');
-  const emailField_0 = page.locator('#email, [name="email"], [type="email"], [data-test="email"]').first();
-  await emailField_0.waitFor({ state: 'visible', timeout: 10000 });
-  await emailField_0.fill('temp8268@gmail.com');
-  console.log('✅ email filled with: temp8268@gmail.com');
-
-  // Step 5: enter password
-  console.log('📋 Step 5: enter password');
-  const passwordField_1 = page.locator('#password, [name="password"], [data-test="password"], input[type="password"]').first();
-  await passwordField_1.waitFor({ state: 'visible', timeout: 10000 });
-  await passwordField_1.fill('temp8268');
-  console.log('✅ password filled with: temp8268');
-
-  // Step 6: click 'login'
-  console.log('📋 Step 6: click \'login\'');
-  const loginBtn_1 = page.locator('button:has-text("Login"), button:has-text("Sign in"), #login-button, [data-test="login-button"]').first();
-  await loginBtn_1.waitFor({ state: 'visible', timeout: 10000 });
-  await loginBtn_1.click();
-  console.log('✅ Login button clicked');
-  await page.waitForTimeout(2000);
-
-  // Step 7: click LogOut
-  console.log('📋 Step 7: click LogOut');
-  const btn_logout_2 = page.locator('button, a, [role="button"]').filter({ hasText: 'LogOut' }).first();
-  await btn_logout_2.waitFor({ state: 'visible', timeout: 10000 });
-  await btn_logout_2.click();
-  console.log('✅ LogOut clicked');
+  // Step 3: click Dress
+  console.log('📋 Step 3: click Dress');
+  const btn_dress_1 = page.locator('button, a, [role="button"]').filter({ hasText: 'Dress' }).first();
+  await btn_dress_1.waitFor({ state: 'visible', timeout: 10000 });
+  await btn_dress_1.click();
+  console.log('✅ Dress clicked');
   await page.waitForTimeout(1000);
+
+  // Step 4: verify 'WOMEN - Dress PRODUCTS'
+  console.log('📋 Step 4: verify \'WOMEN - Dress PRODUCTS\'');
+  // Verify: WOMEN - Dress PRODUCTS
+  let verificationPassed_2 = false;
+  for (let i = 0; i < 3; i++) {
+    try {
+      const bodyText = await page.locator('body').textContent();
+      if (bodyText) {
+        // Remove all spaces and convert to lowercase for flexible matching (handles extra spaces, line breaks, case variations, etc.)
+        const normalizedBodyText = bodyText.replace(/\s+/g, '').toLowerCase();
+        if (normalizedBodyText.includes('women-dressproducts')) {
+          verificationPassed_2 = true;
+          break;
+        }
+        // Debug: Log a sample of the page text if not found on last attempt
+        if (i === 2) {
+          const sampleText = normalizedBodyText.substring(0, 500);
+          console.log('🔍 DEBUG: Looking for "women-dressproducts" in page text');
+          console.log('🔍 DEBUG: Page text sample (first 500 chars): ' + sampleText);
+        }
+      }
+    } catch (e) {
+      // Continue retrying
+    }
+    await page.waitForTimeout(1000);
+  }
+  if (!verificationPassed_2) {
+    throw new Error('Page does not contain expected text: WOMEN - Dress PRODUCTS');
+  }
+  console.log('✅ Verified: WOMEN - Dress PRODUCTS');
+
+  // Step 5: click Women
+  console.log('📋 Step 5: click Women');
+  const btn_women_2 = page.locator('button, a, [role="button"]').filter({ hasText: 'Women' }).first();
+  await btn_women_2.waitFor({ state: 'visible', timeout: 10000 });
+  await btn_women_2.click();
+  console.log('✅ Women clicked');
+  await page.waitForTimeout(1000);
+
+  // Step 6: click KIDS
+  console.log('📋 Step 6: click KIDS');
+  const btn_kids_3 = page.locator('button, a, [role="button"]').filter({ hasText: 'KIDS' }).first();
+  await btn_kids_3.waitFor({ state: 'visible', timeout: 10000 });
+  await btn_kids_3.click();
+  console.log('✅ KIDS clicked');
+  await page.waitForTimeout(1000);
+
+  // Step 7: click Tops & Shirts
+  console.log('📋 Step 7: click Tops & Shirts');
+  const btn_tops_shirt_4 = page.locator('button, a, [role="button"]').filter({ hasText: 'Tops & Shirts' }).first();
+  await btn_tops_shirt_4.waitFor({ state: 'visible', timeout: 10000 });
+  await btn_tops_shirt_4.click();
+  console.log('✅ Tops & Shirts clicked');
+  await page.waitForTimeout(1000);
+
+  // Step 8: verify 'Kids - Tops & Shirts Products'
+  console.log('📋 Step 8: verify \'Kids - Tops & Shirts Products\'');
+  // Verify: Kids - Tops & Shirts Products
+  let verificationPassed_5 = false;
+  for (let i = 0; i < 3; i++) {
+    try {
+      const bodyText = await page.locator('body').textContent();
+      if (bodyText) {
+        // Remove all spaces and convert to lowercase for flexible matching (handles extra spaces, line breaks, case variations, etc.)
+        const normalizedBodyText = bodyText.replace(/\s+/g, '').toLowerCase();
+        if (normalizedBodyText.includes('kids-tops&shirtsproducts')) {
+          verificationPassed_5 = true;
+          break;
+        }
+        // Debug: Log a sample of the page text if not found on last attempt
+        if (i === 2) {
+          const sampleText = normalizedBodyText.substring(0, 500);
+          console.log('🔍 DEBUG: Looking for "kids-tops&shirtsproducts" in page text');
+          console.log('🔍 DEBUG: Page text sample (first 500 chars): ' + sampleText);
+        }
+      }
+    } catch (e) {
+      // Continue retrying
+    }
+    await page.waitForTimeout(1000);
+  }
+  if (!verificationPassed_5) {
+    throw new Error('Page does not contain expected text: Kids - Tops & Shirts Products');
+  }
+  console.log('✅ Verified: Kids - Tops & Shirts Products');
 
   // Take final screenshot
-  await page.screenshot({ path: 'test-results/TestCase_1771155530530-final.png', fullPage: true });
+  await page.screenshot({ path: 'test-results/TestCase_1771165571151-final.png', fullPage: true });
   console.log('✅ Test completed successfully');

@@ -1230,7 +1230,10 @@ function generateInstructionBasedTests(instructions, baseUrl) {
     // ENHANCED: Parse password entry with COMPREHENSIVE patterns
     const passwordMatch = line.match(/(?:enter|fill|type|input|set)\s+(?:the\s+)?(?:value\s+)?(?:of\s+)?(?:password|pass)\s+(?:as|to|with|field)?\s*[""''""]([^""''"]+)[""''"]/i) ||
                          line.match(/(?:enter|fill|type|input|set)\s+[""''""]([^""''"]+)[""''"]\s+(?:in|into|to|for)\s+(?:the\s+)?(?:password|pass)/i) ||
-                         line.match(/(?:password|pass)\s*[""''""]([^""''"]+)[""''"]/i);
+                         line.match(/(?:password|pass)\s*[""''""]([^""''"]+)[""''"]/i) ||
+                         line.match(/(?:enter|fill|type|input|set)\s+(?:password|pass)\s+as\s+[""''""]([^""''"]+)[""''"]/i) ||
+                         line.match(/(?:enter|fill|type|input|set)\s+(?:password|pass)\s+[""''""]([^""''"]+)[""''"]/i) ||
+                         line.match(/^enter\s+password\s+[""''""]([^""''"]+)[""''"]/i);
     if (passwordMatch) {
       const value = passwordMatch[1];
       credentials.password = value;
@@ -1249,7 +1252,10 @@ function generateInstructionBasedTests(instructions, baseUrl) {
     // PRIORITY: If line explicitly says "email", treat it as email field, not username
     const emailMatch = line.match(/(?:enter|fill|type|input|set)\s+(?:the\s+)?(?:value\s+)?(?:of\s+)?email\s+(?:as|to|with|field)?\s*[""''""]([^""''"]+)[""''"]/i) ||
                       line.match(/(?:enter|fill|type|input|set)\s+[""''""]([^""''"]+)[""''"]\s+(?:in|into|to|for)\s+(?:the\s+)?email/i) ||
-                      line.match(/email\s*[""''""]([^""''"]+)[""''"]/i);
+                      line.match(/email\s*[""''""]([^""''"]+)[""''"]/i) ||
+                      line.match(/(?:enter|fill|type|input|set)\s+email\s+as\s+[""''""]([^""''"]+)[""''"]/i) ||
+                      line.match(/(?:enter|fill|type|input|set)\s+email\s+[""''""]([^""''"]+)[""''"]/i) ||
+                      line.match(/^enter\s+email\s+[""''""]([^""''"]+)[""''"]/i);
     if (emailMatch) {
       const value = emailMatch[1];
       formData.email = value;
@@ -1317,9 +1323,9 @@ function generateInstructionBasedTests(instructions, baseUrl) {
       console.log(`✅ Detected custom field "${fieldName}": "${value}"`);
     }
     
-    // ENHANCED: Parse type in search bar pattern: "type 'value' in search bar" OR "in search bar, type 'value'"
-    const searchMatch = line.match(/(?:type|enter|fill)\s+[""''""]([^""''"]+)[""''"]\s+(?:in|into)\s+(?:the\s+)?(?:search\s+)?bar/i) ||
-                       line.match(/(?:in|into)\s+(?:the\s+)?(?:search\s+)?bar,?\s+(?:type|enter|fill)\s+[""''""]([^""''"]+)[""''"]/i);
+    // ENHANCED: Parse type in search bar pattern: "type 'value' in search bar" OR "in search bar, type 'value'" OR "enter 'value' in search"
+    const searchMatch = line.match(/(?:type|enter|fill)\s+[""''""]([^""''"]+)[""''"]\s+(?:in|into)\s+(?:the\s+)?(?:search\s+)?(?:bar|field)?/i) ||
+                       line.match(/(?:in|into)\s+(?:the\s+)?(?:search\s+)?(?:bar|field),?\s+(?:type|enter|fill)\s+[""''""]([^""''"]+)[""''"]/i);
     if (searchMatch && !customFieldMatch) {
       const value = searchMatch[1];
       parsedActions.push({
@@ -1706,11 +1712,27 @@ function generateEnterCode(lines, action, varCounter) {
   } else if (fieldName === 'phone' || fieldName === 'telephone') {
     selectors = ['#phone', '[name="phone"]', '[type="tel"]', '[data-test="phone"]'];
   } else if (fieldName === 'search') {
-    selectors = ['#search_product', '[name="search"]', 'input[type="search"]', '[placeholder*="Search"]'];
+    // For Google searches, use direct URL navigation instead of typing
+    lines.push(`  // Check if this is a Google search`);
+    lines.push(`  const currentUrl = page.url();`);
+    lines.push(`  if (currentUrl.includes('google.com')) {`);
+    lines.push(`    // Navigate directly to Google search results`);
+    lines.push(`    const searchQuery = encodeURIComponent('${escapedValue}');`);
+    lines.push(`    await page.goto(\`https://www.google.com/search?q=\${searchQuery}\`, { waitUntil: 'networkidle' });`);
+    lines.push(`    console.log('✅ Navigated to Google search results for: ${escapedValue}');`);
+    lines.push(`  } else {`);
+    lines.push(`    // For non-Google sites, use the search field`);
+    lines.push(`    const ${varName} = page.locator('input[name="q"], #search_product, [name="search"], input[type="search"], [placeholder*="Search"], input[aria-label*="Search"], textarea[aria-label*="Search"]').first();`);
+    lines.push(`    await ${varName}.waitFor({ state: 'visible', timeout: 10000 });`);
+    lines.push(`    await ${varName}.fill('${escapedValue}');`);
+    lines.push(`    console.log('✅ ${escapedFieldName} filled with: ${escapedValue}');`);
+    lines.push(`  }`);
+    return;
   } else {
     selectors = [`#${fieldName}`, `[name="${fieldName}"]`, `[data-test="${fieldName}"]`];
   }
   
+  // Generate code for all non-search field types
   lines.push(`  const ${varName} = page.locator('${selectors.join(', ')}').first();`);
   lines.push(`  await ${varName}.waitFor({ state: 'visible', timeout: 10000 });`);
   lines.push(`  await ${varName}.fill('${escapedValue}');`);
@@ -1737,6 +1759,30 @@ function generateClickCode(lines, action, varCounter) {
     lines.push(`  await ${varName}.click();`);
     lines.push(`  console.log('✅ Button with id "${elementId}" clicked');`);
     lines.push(`  await page.waitForTimeout(1000);`);
+  } else if (targetLower === 'search' || targetLower === 'search button') {
+    // Handle Search button - may have icon instead of text
+    const searchVarName = `searchBtn_${varCounter}`;
+    lines.push(`  const ${searchVarName} = page.locator('#submit_search, button[type="submit"]:has(i.fa-search), button:has-text("Search"), [aria-label*="Search"]').first();`);
+    lines.push(`  await ${searchVarName}.waitFor({ state: 'visible', timeout: 10000 });`);
+    lines.push(`  await ${searchVarName}.click();`);
+    lines.push(`  console.log('✅ Search button clicked');`);
+    lines.push(`  await page.waitForTimeout(2000);`);
+  } else if (targetLower === 'products' || targetLower === 'products button') {
+    const productsVarName = `productsBtn_${varCounter}`;
+    lines.push(`  const ${productsVarName} = page.locator('button, a, [role="button"]').filter({ hasText: 'Products' }).first();`);
+    lines.push(`  await ${productsVarName}.waitFor({ state: 'visible', timeout: 10000 });`);
+    lines.push(`  await ${productsVarName}.click();`);
+    lines.push(`  console.log('✅ Products button clicked');`);
+    lines.push(`  // Wait for products page to load - increased wait time`);
+    lines.push(`  await page.waitForTimeout(3000);`);
+    lines.push(`  // Wait for page navigation to complete`);
+    lines.push(`  try {`);
+    lines.push(`    await page.waitForNavigation({ waitUntil: 'networkidle', timeout: 10000 }).catch(() => {});`);
+    lines.push(`  } catch (e) {`);
+    lines.push(`    // Navigation may not occur, continue anyway`);
+    lines.push(`  }`);
+    lines.push(`  // Additional wait for dynamic content to render`);
+    lines.push(`  await page.waitForTimeout(2000);`);
   } else if (targetLower === 'login' || targetLower === 'sign in' || targetLower === 'login button' || targetLower === 'sign in button') {
     const loginVarName = `loginBtn_${varCounter}`;
     lines.push(`  const ${loginVarName} = page.locator('button:has-text("Login"), button:has-text("Sign in"), #login-button, [data-test="login-button"]').first();`);
@@ -1744,6 +1790,101 @@ function generateClickCode(lines, action, varCounter) {
     lines.push(`  await ${loginVarName}.click();`);
     lines.push(`  console.log('✅ Login button clicked');`);
     lines.push(`  await page.waitForTimeout(2000);`);
+    lines.push(``);
+    lines.push(`  // AUTO-DETECT: Check for login errors - COMPREHENSIVE CHECK`);
+    lines.push(`  let errorFound = false;`);
+    lines.push(`  let errorMessage = '';`);
+    lines.push(``);
+    lines.push(`  // Strategy 1: Check common error element selectors`);
+    lines.push(`  const errorSelectors = [`);
+    lines.push(`    '[class*="error"]',`);
+    lines.push(`    '[class*="alert"]',`);
+    lines.push(`    '[class*="danger"]',`);
+    lines.push(`    '[role="alert"]',`);
+    lines.push(`    '.error-message',`);
+    lines.push(`    '.alert-danger',`);
+    lines.push(`    '.invalid-feedback',`);
+    lines.push(`    'span[style*="color"]',`);
+    lines.push(`    'p[style*="color"]',`);
+    lines.push(`    'div[style*="red"]',`);
+    lines.push(`    '[class*="red"]',`);
+    lines.push(`    '[class*="fail"]',`);
+    lines.push(`    '[class*="invalid"]'`);
+    lines.push(`  ];`);
+    lines.push(``);
+    lines.push(`  for (const selector of errorSelectors) {`);
+    lines.push(`    try {`);
+    lines.push(`      const elements = page.locator(selector);`);
+    lines.push(`      const count = await elements.count();`);
+    lines.push(`      if (count > 0) {`);
+    lines.push(`        for (let i = 0; i < Math.min(count, 5); i++) {`);
+    lines.push(`          const text = await elements.nth(i).textContent();`);
+    lines.push(`          if (text) {`);
+    lines.push(`            const lowerText = text.toLowerCase();`);
+    lines.push(`            if (lowerText.includes('error') || lowerText.includes('incorrect') || lowerText.includes('invalid') || lowerText.includes('failed') || lowerText.includes('wrong')) {`);
+    lines.push(`              errorFound = true;`);
+    lines.push(`              errorMessage = text.trim();`);
+    lines.push(`              console.log('❌ LOGIN ERROR DETECTED (Selector): ' + errorMessage);`);
+    lines.push(`              break;`);
+    lines.push(`            }`);
+    lines.push(`          }`);
+    lines.push(`        }`);
+    lines.push(`        if (errorFound) break;`);
+    lines.push(`      }`);
+    lines.push(`    } catch (e) {`);
+    lines.push(`      // Continue checking other selectors`);
+    lines.push(`    }`);
+    lines.push(`  }`);
+    lines.push(``);
+    lines.push(`  // Strategy 2: Check entire page HTML for error keywords`);
+    lines.push(`  if (!errorFound) {`);
+    lines.push(`    try {`);
+    lines.push(`      const pageHTML = await page.content();`);
+    lines.push(`      const lowerHTML = pageHTML.toLowerCase();`);
+    lines.push(`      if (lowerHTML.includes('your email or password is incorrect') || `);
+    lines.push(`          lowerHTML.includes('login failed') || `);
+    lines.push(`          lowerHTML.includes('invalid credentials') || `);
+    lines.push(`          lowerHTML.includes('authentication failed') || `);
+    lines.push(`          lowerHTML.includes('email or password') || `);
+    lines.push(`          lowerHTML.includes('incorrect')) {`);
+    lines.push(`        errorFound = true;`);
+    lines.push(`        errorMessage = 'Login error detected in page HTML';`);
+    lines.push(`        console.log('❌ LOGIN ERROR DETECTED (HTML): ' + errorMessage);`);
+    lines.push(`      }`);
+    lines.push(`    } catch (e) {`);
+    lines.push(`      console.log('Could not check page HTML');`);
+    lines.push(`    }`);
+    lines.push(`  }`);
+    lines.push(``);
+    lines.push(`  // Strategy 3: Check if we're still on login page (login failed)`);
+    lines.push(`  if (!errorFound) {`);
+    lines.push(`    try {`);
+    lines.push(`      const currentPageUrl = page.url();`);
+    lines.push(`      const pageTitle = await page.title();`);
+    lines.push(`      const hasLoginForm = await page.locator('input[type="password"]').count() > 0;`);
+    lines.push(`      `);
+    lines.push(`      // If we're still on login page with password field visible, login likely failed`);
+    lines.push(`      if (hasLoginForm && (currentPageUrl.includes('login') || pageTitle.toLowerCase().includes('login'))) {`);
+    lines.push(`        // Double-check by looking for any visible error text`);
+    lines.push(`        const allText = await page.textContent();`);
+    lines.push(`        if (allText && (allText.toLowerCase().includes('incorrect') || allText.toLowerCase().includes('error'))) {`);
+    lines.push(`          errorFound = true;`);
+    lines.push(`          errorMessage = 'Login form still visible - login likely failed';`);
+    lines.push(`          console.log('❌ LOGIN ERROR DETECTED (Still on login page): ' + errorMessage);`);
+    lines.push(`        }`);
+    lines.push(`      }`);
+    lines.push(`    } catch (e) {`);
+    lines.push(`      console.log('Could not check login page status');`);
+    lines.push(`    }`);
+    lines.push(`  }`);
+    lines.push(``);
+    lines.push(`  if (errorFound) {`);
+    lines.push(`    // Take screenshot for debugging`);
+    lines.push(`    await page.screenshot({ path: 'test-results/TestCase_error_debug.png', fullPage: true });`);
+    lines.push(`    throw new Error('Login failed with error: ' + errorMessage);`);
+    lines.push(`  }`);
+    lines.push(``);
+    lines.push(`  console.log('✅ No login errors detected');`);
   } else if (targetLower === 'submit' || targetLower === 'send' || targetLower === 'submit button' || targetLower === 'send button') {
     const submitVarName = `submitBtn_${varCounter}`;
     lines.push(`  const ${submitVarName} = page.locator('button:has-text("Submit"), button:has-text("Send"), #submit, [type="submit"]').first();`);
@@ -1751,6 +1892,41 @@ function generateClickCode(lines, action, varCounter) {
     lines.push(`  await ${submitVarName}.click();`);
     lines.push(`  console.log('✅ Submit button clicked');`);
     lines.push(`  await page.waitForTimeout(2000);`);
+  } else if (targetLower === 'enter' || targetLower === 'enter button' || targetLower === 'search button') {
+    // Handle Enter button - could be a button or pressing Enter key
+    const enterVarName = `enterBtn_${varCounter}`;
+    lines.push(`  // Try to find Enter button, or press Enter key`);
+    lines.push(`  try {`);
+    lines.push(`    const ${enterVarName} = page.locator('button:has-text("Enter"), button:has-text("Search"), [aria-label*="Search"], input[type="submit"]').first();`);
+    lines.push(`    if (await ${enterVarName}.count() > 0) {`);
+    lines.push(`      await ${enterVarName}.click();`);
+    lines.push(`      console.log('✅ Enter button clicked');`);
+    lines.push(`    } else {`);
+    lines.push(`      throw new Error('Enter button not found');`);
+    lines.push(`    }`);
+    lines.push(`  } catch (e) {`);
+    lines.push(`    // Fallback: Press Enter key`);
+    lines.push(`    await page.keyboard.press('Enter');`);
+    lines.push(`    console.log('✅ Enter key pressed');`);
+    lines.push(`  }`);
+    lines.push(`  // Wait for page to load - try multiple strategies`);
+    lines.push(`  try {`);
+    lines.push(`    await page.waitForNavigation({ waitUntil: 'networkidle', timeout: 10000 }).catch(() => {});`);
+    lines.push(`  } catch (e) {`);
+    lines.push(`    console.log('Navigation wait timed out, continuing...');`);
+    lines.push(`  }`);
+    lines.push(`  // Wait for search results to appear`);
+    lines.push(`  await page.waitForSelector('[data-sokoban-container], .g, #search, [role="main"]', { timeout: 10000 }).catch(() => {});`);
+    lines.push(`  // Additional wait for dynamic content`);
+    lines.push(`  await page.waitForTimeout(3000);`);
+    lines.push(`  // Check if we're on Google Images and redirect if needed`);
+    lines.push(`  const pageUrl = page.url();`);
+    lines.push(`  if (pageUrl.includes('/images')) {`);
+    lines.push(`    console.log('⚠️ Redirected to Google Images, navigating back to Web search...');`);
+    lines.push(`    await page.goto(pageUrl.replace('/images', ''), { waitUntil: 'networkidle' });`);
+    lines.push(`    await page.waitForTimeout(2000);`);
+    lines.push(`  }`);
+    lines.push(`  console.log('✅ Search results page loaded');`);
   } else {
     // Use a unique variable name based on the target to avoid conflicts
     // Remove quotes and special characters from target for variable name
@@ -1796,6 +1972,9 @@ function generateVerifyCode(lines, action, varCounter) {
   // Remove surrounding quotes from target if present
   const cleanTarget = target.replace(/^['"]|['"]$/g, '');
   
+  // Use unique variable name based on counter to avoid conflicts
+  const verifyVarName = `verificationPassed_${varCounter}`;
+  
   // Check if target contains "or" for multiple text options
   if (cleanTarget.includes(' or ')) {
     const texts = cleanTarget.split(' or ').map(t => t.trim());
@@ -1804,16 +1983,58 @@ function generateVerifyCode(lines, action, varCounter) {
     
     // Generate code to check for any of the texts
     lines.push(`  // Verify page contains one of: ${escapedTexts.join(' OR ')}`);
-    lines.push(`  const bodyText = await page.locator('body').textContent();`);
-    lines.push(`  const hasExpectedText = ${escapedTexts.map(t => `bodyText.includes('${t}')`).join(' || ')};`);
-    lines.push(`  if (!hasExpectedText) {`);
+    lines.push(`  let ${verifyVarName} = false;`);
+    lines.push(`  for (let i = 0; i < 3; i++) {`);
+    lines.push(`    try {`);
+    lines.push(`      const bodyText = await page.locator('body').textContent();`);
+    lines.push(`      // Remove all spaces and convert to lowercase for flexible matching`);
+    lines.push(`      const normalizedBodyText = bodyText.replace(/\\s+/g, '').toLowerCase();`);
+    lines.push(`      const hasExpectedText = ${escapedTexts.map(t => `normalizedBodyText.includes('${t.replace(/\s+/g, '').toLowerCase()}')`).join(' || ')};`);
+    lines.push(`      if (hasExpectedText) {`);
+    lines.push(`        ${verifyVarName} = true;`);
+    lines.push(`        break;`);
+    lines.push(`      }`);
+    lines.push(`    } catch (e) {`);
+    lines.push(`      // Continue retrying`);
+    lines.push(`    }`);
+    lines.push(`    await page.waitForTimeout(1000);`);
+    lines.push(`  }`);
+    lines.push(`  if (!${verifyVarName}) {`);
     lines.push(`    throw new Error('Page does not contain expected text: ${escapedTexts.join(' or ')}');`);
     lines.push(`  }`);
     lines.push(`  console.log('✅ Verified page contains expected text');`);
   } else {
     // Single text verification - remove quotes from the text
     const escapedTarget = cleanTarget.replace(/'/g, "\\'");
-    lines.push(`  await expect(page.locator('body')).toContainText('${escapedTarget}', { timeout: 10000 });`);
+    // Remove spaces from target for flexible matching AND convert to lowercase
+    const normalizedTarget = cleanTarget.replace(/\s+/g, '').toLowerCase();
+    lines.push(`  // Verify: ${escapedTarget}`);
+    lines.push(`  let ${verifyVarName} = false;`);
+    lines.push(`  for (let i = 0; i < 3; i++) {`);
+    lines.push(`    try {`);
+    lines.push(`      const bodyText = await page.locator('body').textContent();`);
+    lines.push(`      if (bodyText) {`);
+    lines.push(`        // Remove all spaces and convert to lowercase for flexible matching (handles extra spaces, line breaks, case variations, etc.)`);
+    lines.push(`        const normalizedBodyText = bodyText.replace(/\\s+/g, '').toLowerCase();`);
+    lines.push(`        if (normalizedBodyText.includes('${normalizedTarget}')) {`);
+    lines.push(`          ${verifyVarName} = true;`);
+    lines.push(`          break;`);
+    lines.push(`        }`);
+    lines.push(`        // Debug: Log a sample of the page text if not found on last attempt`);
+    lines.push(`        if (i === 2) {`);
+    lines.push(`          const sampleText = normalizedBodyText.substring(0, 500);`);
+    lines.push(`          console.log('🔍 DEBUG: Looking for "${normalizedTarget}" in page text');`);
+    lines.push(`          console.log('🔍 DEBUG: Page text sample (first 500 chars): ' + sampleText);`);
+    lines.push(`        }`);
+    lines.push(`      }`);
+    lines.push(`    } catch (e) {`);
+    lines.push(`      // Continue retrying`);
+    lines.push(`    }`);
+    lines.push(`    await page.waitForTimeout(1000);`);
+    lines.push(`  }`);
+    lines.push(`  if (!${verifyVarName}) {`);
+    lines.push(`    throw new Error('Page does not contain expected text: ${escapedTarget}');`);
+    lines.push(`  }`);
     lines.push(`  console.log('✅ Verified: ${escapedTarget}');`);
   }
 }
