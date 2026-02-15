@@ -29,6 +29,10 @@ npm install
 cp .env.example .env
 # Edit .env with your configuration
 
+npm i express cors uuid
+npm install -D @playwright/test
+npx playwright install chromium
+
 # Build the project
 npm run build
 ```
