@@ -1204,9 +1204,15 @@ function generateInstructionBasedTests(instructions, baseUrl) {
     
     // ENHANCED: Parse username/user/email entry with COMPREHENSIVE patterns
     // Supports: enter username "value", fill username "value", type "value" in username, username "value"
-    const usernameMatch = line.match(/(?:enter|fill|type|input|set)\s+(?:the\s+)?(?:value\s+)?(?:of\s+)?(?:username|user|email)\s+(?:as|to|with|field)?\s*[""''""]([^""''"]+)[""''"]/i) ||
-                         line.match(/(?:enter|fill|type|input|set)\s+[""''""]([^""''"]+)[""''"]\s+(?:in|into|to|for)\s+(?:the\s+)?(?:username|user|email)/i) ||
-                         line.match(/(?:username|user|email)\s*[""''""]([^""''"]+)[""''"]/i);
+    // IMPORTANT: Check for explicit "email" keyword FIRST before treating as username
+    const hasExplicitEmail = line.toLowerCase().includes('email') && !line.toLowerCase().includes('username') && !line.toLowerCase().includes('user');
+    
+    const usernameMatch = !hasExplicitEmail && (
+      line.match(/(?:enter|fill|type|input|set)\s+(?:the\s+)?(?:value\s+)?(?:of\s+)?(?:username|user)\s+(?:as|to|with|field)?\s*[""''""]([^""''"]+)[""''"]/i) ||
+      line.match(/(?:enter|fill|type|input|set)\s+[""''""]([^""''"]+)[""''"]\s+(?:in|into|to|for)\s+(?:the\s+)?(?:username|user)/i) ||
+      line.match(/(?:username|user)\s*[""''""]([^""''"]+)[""''"]/i)
+    );
+    
     if (usernameMatch) {
       const value = usernameMatch[1];
       credentials.username = value;
@@ -1240,10 +1246,11 @@ function generateInstructionBasedTests(instructions, baseUrl) {
     }
     
     // ENHANCED: Parse email entry (separate from username) with better patterns
+    // PRIORITY: If line explicitly says "email", treat it as email field, not username
     const emailMatch = line.match(/(?:enter|fill|type|input|set)\s+(?:the\s+)?(?:value\s+)?(?:of\s+)?email\s+(?:as|to|with|field)?\s*[""''""]([^""''"]+)[""''"]/i) ||
                       line.match(/(?:enter|fill|type|input|set)\s+[""''""]([^""''"]+)[""''"]\s+(?:in|into|to|for)\s+(?:the\s+)?email/i) ||
                       line.match(/email\s*[""''""]([^""''"]+)[""''"]/i);
-    if (emailMatch && !usernameMatch) {
+    if (emailMatch) {
       const value = emailMatch[1];
       formData.email = value;
       parsedActions.push({
@@ -1747,7 +1754,7 @@ function generateClickCode(lines, action, varCounter) {
   } else {
     // Use a unique variable name based on the target to avoid conflicts
     // Remove quotes and special characters from target for variable name
-    const cleanTarget = target.replace(/['"]/g, '').toLowerCase().replace(/\s+/g, '_').substring(0, 10);
+    const cleanTarget = target.replace(/['"]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').substring(0, 10);
     const varName = `btn_${cleanTarget}_${varCounter}`;
     lines.push(`  const ${varName} = page.locator('button, a, [role="button"]').filter({ hasText: '${escapedTarget}' }).first();`);
     lines.push(`  await ${varName}.waitFor({ state: 'visible', timeout: 10000 });`);
@@ -1786,9 +1793,12 @@ function generateCheckCode(lines, action, varCounter) {
 function generateVerifyCode(lines, action, varCounter) {
   const target = action.target;
   
+  // Remove surrounding quotes from target if present
+  const cleanTarget = target.replace(/^['"]|['"]$/g, '');
+  
   // Check if target contains "or" for multiple text options
-  if (target.includes(' or ')) {
-    const texts = target.split(' or ').map(t => t.trim());
+  if (cleanTarget.includes(' or ')) {
+    const texts = cleanTarget.split(' or ').map(t => t.trim());
     // Escape single quotes in each text
     const escapedTexts = texts.map(t => t.replace(/'/g, "\\'"));
     
@@ -1801,8 +1811,8 @@ function generateVerifyCode(lines, action, varCounter) {
     lines.push(`  }`);
     lines.push(`  console.log('✅ Verified page contains expected text');`);
   } else {
-    // Single text verification
-    const escapedTarget = target.replace(/'/g, "\\'");
+    // Single text verification - remove quotes from the text
+    const escapedTarget = cleanTarget.replace(/'/g, "\\'");
     lines.push(`  await expect(page.locator('body')).toContainText('${escapedTarget}', { timeout: 10000 });`);
     lines.push(`  console.log('✅ Verified: ${escapedTarget}');`);
   }
