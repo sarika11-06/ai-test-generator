@@ -1313,8 +1313,9 @@ function generateInstructionBasedTests(instructions, baseUrl) {
                        line.match(/(?:in|into)\s+(?:the\s+)?(?:search\s+)?(?:bar|field),?\s+(?:type|enter|fill)\s+[""''""]([^""''"]+)[""''"]/i);
     
     // Check if this is a standalone "Enter 'value'" that should be treated as search
+    // IMPORTANT: Only treat as search if it's TRULY standalone (no field name mentioned)
     let isStandaloneEnter = false;
-    if (line.match(/^(?:enter|type|fill)\s+[""''""]([^""''"]+)[""''"]/i) && 
+    if (line.match(/^(?:enter|type|fill)\s+[""''""]([^""''"]+)[""''"]\s*$/i) && 
         !line.toLowerCase().includes('in ') && 
         !line.toLowerCase().includes('into ') &&
         !line.toLowerCase().includes('username') &&
@@ -1736,8 +1737,8 @@ function generateEnterCode(lines, action, varCounter) {
   } else if (fieldName === 'search') {
     // For Google searches, use direct URL navigation instead of typing
     lines.push(`  // Check if this is a Google search`);
-    lines.push(`  const currentUrl = page.url();`);
-    lines.push(`  if (currentUrl.includes('google.com')) {`);
+    lines.push(`  const currentUrl_${varCounter} = page.url();`);
+    lines.push(`  if (currentUrl_${varCounter}.includes('google.com')) {`);
     lines.push(`    // Navigate directly to Google search results`);
     lines.push(`    const searchQuery = encodeURIComponent('${escapedValue}');`);
     lines.push(`    await page.goto(\`https://www.google.com/search?q=\${searchQuery}\`, { waitUntil: 'networkidle' });`);
