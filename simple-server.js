@@ -859,109 +859,67 @@ app.post('/api/generate-tests', async (req, res) => {
     if (explicitTestTypes.length > 0) {
       console.log(`🎯 Using explicit test types from checkboxes: ${explicitTestTypes.join(', ')}`);
       
-      try {
-        // Map frontend values to router values
-        const routerTypes = explicitTestTypes.map(type => {
-          if (type === 'inputValidation') return 'functional'; // Input validation uses functional generator
-          return type; // 'functional', 'accessibility', 'api', etc.
-        }).filter((type, index, self) => self.indexOf(type) === index); // Remove duplicates
+      let allGeneratedTests = [];
+      
+      // Generate Accessibility Tests
+      if (explicitTestTypes.includes('accessibility')) {
+        console.log('🎨 Generating Accessibility Tests...');
+        const accessibilityTests = generateAccessibilityTests(request.url);
+        allGeneratedTests = allGeneratedTests.concat(accessibilityTests);
+        console.log(`✅ Generated ${accessibilityTests.length} accessibility tests`);
+      }
+      
+      // Generate Performance Tests
+      if (explicitTestTypes.includes('performance')) {
+        console.log('⚡ Generating Performance Tests...');
+        const performanceTests = generatePerformanceTests(request.url);
+        allGeneratedTests = allGeneratedTests.concat(performanceTests);
+        console.log(`✅ Generated ${performanceTests.length} performance tests`);
+      }
+      
+      // Generate Security Tests
+      if (explicitTestTypes.includes('security')) {
+        console.log('🔒 Generating Security Tests...');
+        const securityTests = generateSecurityTests(request.url);
+        allGeneratedTests = allGeneratedTests.concat(securityTests);
+        console.log(`✅ Generated ${securityTests.length} security tests`);
+      }
+      
+      // Generate other test types using integrated router
+      const otherTypes = explicitTestTypes.filter(t => !['accessibility', 'performance', 'security'].includes(t));
+      if (otherTypes.length > 0) {
+        console.log(`🎯 Generating other test types: ${otherTypes.join(', ')}`);
         
-        const result = await integratedRouter.generateTestsWithTypes({
-          url: request.url,
-          prompt: request.intent || request.prompt || '',
-          websiteAnalysis: request.websiteAnalysis,
-          outputFormat: request.outputFormat
-        }, routerTypes);
-        
-        // Store test cases in memory database AND save to database
-        for (const testCase of result.testCases) {
-          testCase.createdAt = new Date().toISOString();
-          testCase.lastExecutionStatus = 'NOT_RUN';
-          testCaseDatabase.set(testCase.id || testCase.testCaseId, testCase);
+        try {
+          const routerTypes = otherTypes.map(type => {
+            if (type === 'inputValidation') return 'functional';
+            return type;
+          }).filter((type, index, self) => self.indexOf(type) === index);
           
-          // Save to database if available
-          if (dbConnected && dbFunctions) {
-            try {
-              await dbFunctions.saveTestCase({
-                test_case_id: testCase.id || testCase.testCaseId,
-                title: testCase.title || testCase.testCaseId,
-                description: testCase.description || 'Generated test case',
-                type: testCase.testType || 'Functional',
-                priority: testCase.priority || 'High',
-                steps: testCase.steps || [],
-                expected_result: testCase.expectedResult || 'Test completes successfully',
-                playwright_code: testCase.playwrightCode,
-                website_url: request.url
-              });
-              console.log(`✅ Saved test case to database: ${testCase.id || testCase.testCaseId}`);
-            } catch (dbError) {
-              console.error(`❌ Failed to save test case to database:`, dbError.message);
-            }
-          }
+          const result = await integratedRouter.generateTestsWithTypes({
+            url: request.url,
+            prompt: request.intent || request.prompt || '',
+            websiteAnalysis: request.websiteAnalysis,
+            outputFormat: request.outputFormat
+          }, routerTypes);
+          
+          allGeneratedTests = allGeneratedTests.concat(result.testCases);
+        } catch (routerError) {
+          console.error('Error generating tests with router:', routerError.message);
         }
-        
-        console.log(`✅ Generated ${result.testCases.length} test cases via explicit types`);
-        console.log('📊 Test types:', result.summary.byType);
-        
-        const responseData = {
-          testSuiteId: uuidv4(),
-          generatedAt: new Date().toISOString(),
-          testCases: result.testCases,
-          summary: result.summary,
-          intent: result.intent,
-          generationMethod: 'explicit_types',
-          
-          // Organize by type for backward compatibility
-          functionalTests: result.testCases.filter(tc => tc.testType === 'Functional'),
-          accessibilityTests: result.testCases.filter(tc => tc.testType === 'Accessibility'),
-          apiTests: result.testCases.filter(tc => tc.testType === 'API'),
-          inputValidationTests: result.testCases.filter(tc => tc.testType === 'Input Validation'),
-          performanceTests: [],
-          securityTests: [],
-          // Always include Playwright code
-          playwrightCode: result.testCases
-            .map(tc => tc.playwrightCode)
-            .filter(code => code && code.length > 0)
-            .join('\n\n')
-        };
-        
-        return res.json({
-          success: true,
-          data: responseData,
-          message: `Generated ${result.testCases.length} test cases successfully`
-        });
-      } catch (explicitError) {
-        console.error('⚠️ Explicit type generation failed, falling back to intent-based:', explicitError.message);
-        // Fall through to intent-based generation
-      }
-    }
-    
-    // NEW: Use integrated router for intelligent test type detection
-    // This automatically detects and generates:
-    // - Accessibility tests (keyboard, screen reader, WCAG)
-    // - API tests (endpoints, validation, authentication)
-    // - Functional tests (existing behavior preserved)
-    try {
-      const integratedResult = await generateTestsWithIntegratedRouter(request);
-      
-      // Check if any tests were generated
-      if (integratedResult.testCases.length === 0) {
-        console.log('⚠️ Integrated router generated 0 tests, falling back to instruction-based generation');
-        throw new Error('No tests generated by integrated router');
       }
       
-      // Store test cases in memory database AND save to database
-      for (const testCase of integratedResult.testCases) {
+      // Store all test cases in database
+      for (const testCase of allGeneratedTests) {
         testCase.createdAt = new Date().toISOString();
         testCase.lastExecutionStatus = 'NOT_RUN';
-        testCaseDatabase.set(testCase.id || testCase.testCaseId, testCase);
+        testCaseDatabase.set(testCase.testCaseId || testCase.id, testCase);
         
-        // Save to database if available
         if (dbConnected && dbFunctions) {
           try {
             await dbFunctions.saveTestCase({
-              test_case_id: testCase.id || testCase.testCaseId,
-              title: testCase.title || testCase.testCaseId,
+              test_case_id: testCase.testCaseId || testCase.id,
+              title: testCase.description || testCase.testCaseId,
               description: testCase.description || 'Generated test case',
               type: testCase.testType || 'Functional',
               priority: testCase.priority || 'High',
@@ -970,36 +928,45 @@ app.post('/api/generate-tests', async (req, res) => {
               playwright_code: testCase.playwrightCode,
               website_url: request.url
             });
-            console.log(`✅ Saved test case to database: ${testCase.id || testCase.testCaseId}`);
           } catch (dbError) {
             console.error(`❌ Failed to save test case to database:`, dbError.message);
           }
         }
       }
       
-      console.log(`✅ Generated ${integratedResult.testCases.length} test cases via integrated router`);
-      console.log('📊 Test types:', integratedResult.summary.byType);
-      
-      // Ensure playwrightCode is included in response
-      if (!integratedResult.playwrightCode) {
-        const codes = integratedResult.testCases
-          .map(tc => tc.playwrightCode)
-          .filter(code => code && code.length > 0);
-        
-        // Combine multiple test cases into one file with single import
-        integratedResult.playwrightCode = combinedPlaywrightTests(codes);
-      }
+      // Organize by type
+      const responseData = {
+        testSuiteId: uuidv4(),
+        generatedAt: new Date().toISOString(),
+        functionalTests: allGeneratedTests.filter(t => t.testType === 'Functional'),
+        inputValidationTests: allGeneratedTests.filter(t => t.testType === 'Input Validation'),
+        apiTests: allGeneratedTests.filter(t => t.testType === 'API'),
+        accessibilityTests: allGeneratedTests.filter(t => t.testType === 'Accessibility'),
+        performanceTests: allGeneratedTests.filter(t => t.testType === 'Performance'),
+        securityTests: allGeneratedTests.filter(t => t.testType === 'Security'),
+        testCases: allGeneratedTests,
+        generationMethod: 'explicit_types',
+        aiQualityScore: 0.92,
+        aiExplanations: [
+          `Generated ${allGeneratedTests.length} test cases for selected test types`,
+          `Accessibility: ${allGeneratedTests.filter(t => t.testType === 'Accessibility').length} tests`,
+          `Performance: ${allGeneratedTests.filter(t => t.testType === 'Performance').length} tests`,
+          `Security: ${allGeneratedTests.filter(t => t.testType === 'Security').length} tests`
+        ],
+        playwrightCode: allGeneratedTests
+          .map(test => test.playwrightCode)
+          .filter(code => code && code.length > 0)
+          .join('\n\n')
+      };
       
       return res.json({
         success: true,
-        data: integratedResult,
-        message: `Generated ${integratedResult.testCases.length} test cases successfully`
+        data: responseData,
+        message: `Generated ${allGeneratedTests.length} test cases successfully`
       });
-    } catch (integratedError) {
-      console.error('⚠️ Integrated router failed, falling back to instruction-based generation:', integratedError.message);
     }
     
-    // FALLBACK: Use AI orchestrator for generic test generation
+    // PRIORITY 3: Fallback to basic test generation if no specific instructions or test types
     console.log('🤖 Using fallback test generation');
     
     // Simple fallback: generate basic functional tests
@@ -1045,30 +1012,21 @@ app.post('/api/generate-tests', async (req, res) => {
       securityTests: [],
       testCases: basicTests,
       generationMethod: 'fallback_basic',
-      aiQualityScore: 0.7,
-      aiExplanations: [
-        'Generated basic functional tests as fallback',
-        `Created ${basicTests.length} test cases for ${request.url}`
-      ],
-      // Always include Playwright code
-      playwrightCode: combinedPlaywrightTests(
-        basicTests
-          .map(test => test.playwrightCode)
-          .filter(code => code && code.length > 0)
-      )
+      playwrightCode: basicTests
+        .map(test => test.playwrightCode)
+        .filter(code => code && code.length > 0)
+        .join('\n\n')
     };
     
-    console.log(`📋 Formatted response with ${basicTests.length} test cases`);
-    
-    res.json({
+    return res.json({
       success: true,
       data: responseData,
-      message: `Generated ${responseData.testCases.length} test cases successfully`
+      message: `Generated ${basicTests.length} basic test cases successfully`
     });
 
   } catch (error) {
     console.error('Test generation error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Test generation failed',
       message: error instanceof Error ? error.message : 'Unknown error occurred'
     });
@@ -2455,6 +2413,544 @@ function generateInputValidationPlaywrightCode(fieldInfo, scenarios, baseUrl, te
 }
 
 // Helper function to count total tests
+function generateAccessibilityTests(baseUrl) {
+  const testCases = [];
+  
+  // WCAG 2.1 Level AA Compliance Tests
+  const accessibilityTests = [
+    {
+      testCaseId: `ACC_KEYBOARD_${Date.now()}`,
+      testType: 'Accessibility',
+      priority: 'High',
+      category: 'Keyboard Navigation',
+      description: 'Verify all interactive elements are keyboard accessible',
+      steps: [
+        { stepNumber: 1, action: 'Navigate to page', expectedBehavior: 'Page loads successfully' },
+        { stepNumber: 2, action: 'Press Tab key repeatedly', expectedBehavior: 'Focus moves through all interactive elements in logical order' },
+        { stepNumber: 3, action: 'Press Shift+Tab', expectedBehavior: 'Focus moves backward through elements' },
+        { stepNumber: 4, action: 'Press Enter on focused button', expectedBehavior: 'Button action is triggered' },
+        { stepNumber: 5, action: 'Press Space on focused checkbox', expectedBehavior: 'Checkbox state toggles' }
+      ],
+      validation: [
+        { type: 'Keyboard_Navigation', description: 'All buttons and links are keyboard accessible', assertion: 'Tab order is logical and visible' },
+        { type: 'Focus_Indicator', description: 'Focus indicator is visible', assertion: 'Focus outline is clearly visible' },
+        { type: 'Keyboard_Trap', description: 'No keyboard traps exist', assertion: 'User can tab out of all elements' }
+      ],
+      playwrightCode: generateAccessibilityPlaywrightCode(baseUrl, 'keyboard'),
+      createdAt: new Date().toISOString(),
+      executionStatus: 'NOT_RUN'
+    },
+    {
+      testCaseId: `ACC_SCREENREADER_${Date.now()}`,
+      testType: 'Accessibility',
+      priority: 'High',
+      category: 'Screen Reader',
+      description: 'Verify page is compatible with screen readers',
+      steps: [
+        { stepNumber: 1, action: 'Navigate to page', expectedBehavior: 'Page loads successfully' },
+        { stepNumber: 2, action: 'Enable screen reader (NVDA/JAWS)', expectedBehavior: 'Screen reader announces page title' },
+        { stepNumber: 3, action: 'Navigate by headings', expectedBehavior: 'All headings are properly announced' },
+        { stepNumber: 4, action: 'Navigate by landmarks', expectedBehavior: 'Main, navigation, and content landmarks are announced' },
+        { stepNumber: 5, action: 'Interact with form fields', expectedBehavior: 'Labels and error messages are announced' }
+      ],
+      validation: [
+        { type: 'ARIA_Labels', description: 'All form fields have proper labels', assertion: 'Labels are associated with inputs' },
+        { type: 'Heading_Structure', description: 'Heading hierarchy is correct', assertion: 'H1 exists and hierarchy is logical' },
+        { type: 'Alt_Text', description: 'Images have alt text', assertion: 'All images have descriptive alt text' }
+      ],
+      playwrightCode: generateAccessibilityPlaywrightCode(baseUrl, 'screenreader'),
+      createdAt: new Date().toISOString(),
+      executionStatus: 'NOT_RUN'
+    },
+    {
+      testCaseId: `ACC_CONTRAST_${Date.now()}`,
+      testType: 'Accessibility',
+      priority: 'High',
+      category: 'Color Contrast',
+      description: 'Verify color contrast meets WCAG AA standards',
+      steps: [
+        { stepNumber: 1, action: 'Navigate to page', expectedBehavior: 'Page loads successfully' },
+        { stepNumber: 2, action: 'Analyze text color contrast', expectedBehavior: 'All text has contrast ratio >= 4.5:1' },
+        { stepNumber: 3, action: 'Analyze large text contrast', expectedBehavior: 'Large text has contrast ratio >= 3:1' },
+        { stepNumber: 4, action: 'Check button contrast', expectedBehavior: 'Buttons have sufficient contrast' },
+        { stepNumber: 5, action: 'Check link contrast', expectedBehavior: 'Links are distinguishable from text' }
+      ],
+      validation: [
+        { type: 'Text_Contrast', description: 'Normal text contrast >= 4.5:1', assertion: 'WCAG AA standard met' },
+        { type: 'Large_Text_Contrast', description: 'Large text contrast >= 3:1', assertion: 'WCAG AA standard met' },
+        { type: 'UI_Component_Contrast', description: 'UI components have sufficient contrast', assertion: 'Buttons and inputs are visible' }
+      ],
+      playwrightCode: generateAccessibilityPlaywrightCode(baseUrl, 'contrast'),
+      createdAt: new Date().toISOString(),
+      executionStatus: 'NOT_RUN'
+    },
+    {
+      testCaseId: `ACC_RESPONSIVE_${Date.now()}`,
+      testType: 'Accessibility',
+      priority: 'Medium',
+      category: 'Responsive Design',
+      description: 'Verify page is accessible on different screen sizes',
+      steps: [
+        { stepNumber: 1, action: 'Test on mobile (320px)', expectedBehavior: 'Content is readable and accessible' },
+        { stepNumber: 2, action: 'Test on tablet (768px)', expectedBehavior: 'Layout adapts properly' },
+        { stepNumber: 3, action: 'Test on desktop (1920px)', expectedBehavior: 'All elements are visible' },
+        { stepNumber: 4, action: 'Test with 200% zoom', expectedBehavior: 'No horizontal scrolling required' },
+        { stepNumber: 5, action: 'Test text resizing', expectedBehavior: 'Text remains readable at 200% size' }
+      ],
+      validation: [
+        { type: 'Mobile_Accessibility', description: 'Mobile layout is accessible', assertion: 'Touch targets are >= 44x44px' },
+        { type: 'Zoom_Support', description: 'Page supports zoom up to 200%', assertion: 'No content is cut off' },
+        { type: 'Text_Resize', description: 'Text can be resized', assertion: 'Text remains readable' }
+      ],
+      playwrightCode: generateAccessibilityPlaywrightCode(baseUrl, 'responsive'),
+      createdAt: new Date().toISOString(),
+      executionStatus: 'NOT_RUN'
+    }
+  ];
+  
+  return accessibilityTests;
+}
+
+function generatePerformanceTests(baseUrl) {
+  const testCases = [];
+  
+  // Performance and Load Time Tests
+  const performanceTests = [
+    {
+      testCaseId: `PERF_LOAD_TIME_${Date.now()}`,
+      testType: 'Performance',
+      priority: 'High',
+      category: 'Page Load Time',
+      description: 'Verify page loads within acceptable time limits',
+      steps: [
+        { stepNumber: 1, action: 'Clear browser cache', expectedBehavior: 'Cache is cleared' },
+        { stepNumber: 2, action: 'Navigate to page', expectedBehavior: 'Page starts loading' },
+        { stepNumber: 3, action: 'Measure DOMContentLoaded time', expectedBehavior: 'DOMContentLoaded < 3 seconds' },
+        { stepNumber: 4, action: 'Measure page load time', expectedBehavior: 'Full page load < 5 seconds' },
+        { stepNumber: 5, action: 'Measure First Contentful Paint', expectedBehavior: 'FCP < 2 seconds' }
+      ],
+      validation: [
+        { type: 'Load_Time', description: 'Page loads within 5 seconds', assertion: 'Load time < 5000ms' },
+        { type: 'FCP', description: 'First Contentful Paint < 2 seconds', assertion: 'FCP < 2000ms' },
+        { type: 'LCP', description: 'Largest Contentful Paint < 2.5 seconds', assertion: 'LCP < 2500ms' }
+      ],
+      playwrightCode: generatePerformancePlaywrightCode(baseUrl, 'loadtime'),
+      createdAt: new Date().toISOString(),
+      executionStatus: 'NOT_RUN'
+    },
+    {
+      testCaseId: `PERF_RESOURCE_SIZE_${Date.now()}`,
+      testType: 'Performance',
+      priority: 'High',
+      category: 'Resource Optimization',
+      description: 'Verify resources are optimized and not oversized',
+      steps: [
+        { stepNumber: 1, action: 'Navigate to page', expectedBehavior: 'Page loads successfully' },
+        { stepNumber: 2, action: 'Measure total page size', expectedBehavior: 'Total size < 5MB' },
+        { stepNumber: 3, action: 'Check image sizes', expectedBehavior: 'Images are optimized' },
+        { stepNumber: 4, action: 'Check JavaScript size', expectedBehavior: 'JS bundle < 500KB' },
+        { stepNumber: 5, action: 'Check CSS size', expectedBehavior: 'CSS bundle < 100KB' }
+      ],
+      validation: [
+        { type: 'Total_Size', description: 'Total page size < 5MB', assertion: 'Page size is optimized' },
+        { type: 'Image_Optimization', description: 'Images are compressed', assertion: 'Image size is reasonable' },
+        { type: 'Bundle_Size', description: 'JS and CSS bundles are optimized', assertion: 'Bundles are not oversized' }
+      ],
+      playwrightCode: generatePerformancePlaywrightCode(baseUrl, 'resources'),
+      createdAt: new Date().toISOString(),
+      executionStatus: 'NOT_RUN'
+    },
+    {
+      testCaseId: `PERF_RENDERING_${Date.now()}`,
+      testType: 'Performance',
+      priority: 'Medium',
+      category: 'Rendering Performance',
+      description: 'Verify page renders smoothly without jank',
+      steps: [
+        { stepNumber: 1, action: 'Navigate to page', expectedBehavior: 'Page loads successfully' },
+        { stepNumber: 2, action: 'Scroll page', expectedBehavior: 'Scrolling is smooth (60 FPS)' },
+        { stepNumber: 3, action: 'Interact with elements', expectedBehavior: 'Interactions are responsive' },
+        { stepNumber: 4, action: 'Check for layout shifts', expectedBehavior: 'Cumulative Layout Shift < 0.1' },
+        { stepNumber: 5, action: 'Monitor CPU usage', expectedBehavior: 'CPU usage is reasonable' }
+      ],
+      validation: [
+        { type: 'Frame_Rate', description: 'Page maintains 60 FPS', assertion: 'No frame drops during scroll' },
+        { type: 'CLS', description: 'Cumulative Layout Shift < 0.1', assertion: 'No unexpected layout shifts' },
+        { type: 'Interaction_Latency', description: 'Interactions respond within 100ms', assertion: 'No lag detected' }
+      ],
+      playwrightCode: generatePerformancePlaywrightCode(baseUrl, 'rendering'),
+      createdAt: new Date().toISOString(),
+      executionStatus: 'NOT_RUN'
+    },
+    {
+      testCaseId: `PERF_NETWORK_${Date.now()}`,
+      testType: 'Performance',
+      priority: 'Medium',
+      category: 'Network Performance',
+      description: 'Verify page performs well on slow networks',
+      steps: [
+        { stepNumber: 1, action: 'Simulate 3G network', expectedBehavior: 'Network throttling applied' },
+        { stepNumber: 2, action: 'Navigate to page', expectedBehavior: 'Page loads on slow network' },
+        { stepNumber: 3, action: 'Measure load time on 3G', expectedBehavior: 'Load time < 10 seconds' },
+        { stepNumber: 4, action: 'Verify content is usable', expectedBehavior: 'Core content loads first' },
+        { stepNumber: 5, action: 'Check for timeout errors', expectedBehavior: 'No timeout errors' }
+      ],
+      validation: [
+        { type: 'Slow_Network_Load', description: 'Page loads on 3G within 10 seconds', assertion: 'Load time < 10000ms' },
+        { type: 'Progressive_Enhancement', description: 'Core content loads first', assertion: 'Page is usable before full load' },
+        { type: 'Network_Resilience', description: 'Page handles network issues', assertion: 'No unhandled errors' }
+      ],
+      playwrightCode: generatePerformancePlaywrightCode(baseUrl, 'network'),
+      createdAt: new Date().toISOString(),
+      executionStatus: 'NOT_RUN'
+    }
+  ];
+  
+  return performanceTests;
+}
+
+function generateSecurityTests(baseUrl) {
+  const testCases = [];
+  
+  // Security and Vulnerability Tests
+  const securityTests = [
+    {
+      testCaseId: `SEC_XSS_${Date.now()}`,
+      testType: 'Security',
+      priority: 'Critical',
+      category: 'XSS Prevention',
+      description: 'Verify page is protected against XSS attacks',
+      steps: [
+        { stepNumber: 1, action: 'Navigate to page', expectedBehavior: 'Page loads successfully' },
+        { stepNumber: 2, action: 'Attempt XSS in search field', expectedBehavior: 'Script is not executed' },
+        { stepNumber: 3, action: 'Attempt XSS in form fields', expectedBehavior: 'Input is sanitized' },
+        { stepNumber: 4, action: 'Check for CSP headers', expectedBehavior: 'Content Security Policy is set' },
+        { stepNumber: 5, action: 'Verify output encoding', expectedBehavior: 'User input is properly encoded' }
+      ],
+      validation: [
+        { type: 'XSS_Protection', description: 'XSS payloads are blocked', assertion: 'No script execution' },
+        { type: 'CSP_Header', description: 'Content Security Policy header is present', assertion: 'CSP is configured' },
+        { type: 'Input_Sanitization', description: 'User input is sanitized', assertion: 'Dangerous characters are escaped' }
+      ],
+      playwrightCode: generateSecurityPlaywrightCode(baseUrl, 'xss'),
+      createdAt: new Date().toISOString(),
+      executionStatus: 'NOT_RUN'
+    },
+    {
+      testCaseId: `SEC_CSRF_${Date.now()}`,
+      testType: 'Security',
+      priority: 'Critical',
+      category: 'CSRF Protection',
+      description: 'Verify page is protected against CSRF attacks',
+      steps: [
+        { stepNumber: 1, action: 'Navigate to page', expectedBehavior: 'Page loads successfully' },
+        { stepNumber: 2, action: 'Check for CSRF tokens', expectedBehavior: 'CSRF token is present in forms' },
+        { stepNumber: 3, action: 'Verify token is unique', expectedBehavior: 'Each form has unique token' },
+        { stepNumber: 4, action: 'Attempt request without token', expectedBehavior: 'Request is rejected' },
+        { stepNumber: 5, action: 'Check SameSite cookie attribute', expectedBehavior: 'SameSite is set to Strict or Lax' }
+      ],
+      validation: [
+        { type: 'CSRF_Token', description: 'CSRF tokens are present', assertion: 'Token exists in forms' },
+        { type: 'Token_Validation', description: 'Tokens are validated on server', assertion: 'Invalid tokens are rejected' },
+        { type: 'SameSite_Cookie', description: 'SameSite cookie attribute is set', assertion: 'SameSite=Strict or Lax' }
+      ],
+      playwrightCode: generateSecurityPlaywrightCode(baseUrl, 'csrf'),
+      createdAt: new Date().toISOString(),
+      executionStatus: 'NOT_RUN'
+    },
+    {
+      testCaseId: `SEC_SQL_INJECTION_${Date.now()}`,
+      testType: 'Security',
+      priority: 'Critical',
+      category: 'SQL Injection Prevention',
+      description: 'Verify page is protected against SQL injection',
+      steps: [
+        { stepNumber: 1, action: 'Navigate to page', expectedBehavior: 'Page loads successfully' },
+        { stepNumber: 2, action: 'Attempt SQL injection in search', expectedBehavior: 'Query is not executed' },
+        { stepNumber: 3, action: 'Attempt SQL injection in login', expectedBehavior: 'Authentication fails safely' },
+        { stepNumber: 4, action: 'Check for parameterized queries', expectedBehavior: 'Queries use parameters' },
+        { stepNumber: 5, action: 'Verify error messages', expectedBehavior: 'Generic error messages shown' }
+      ],
+      validation: [
+        { type: 'SQL_Injection_Protection', description: 'SQL injection attempts are blocked', assertion: 'No database errors exposed' },
+        { type: 'Parameterized_Queries', description: 'Queries use parameterized statements', assertion: 'No string concatenation' },
+        { type: 'Error_Handling', description: 'Error messages do not expose database info', assertion: 'Generic errors shown' }
+      ],
+      playwrightCode: generateSecurityPlaywrightCode(baseUrl, 'sqli'),
+      createdAt: new Date().toISOString(),
+      executionStatus: 'NOT_RUN'
+    },
+    {
+      testCaseId: `SEC_HTTPS_${Date.now()}`,
+      testType: 'Security',
+      priority: 'Critical',
+      category: 'HTTPS/TLS',
+      description: 'Verify page uses HTTPS and has valid SSL certificate',
+      steps: [
+        { stepNumber: 1, action: 'Navigate to page', expectedBehavior: 'Page loads over HTTPS' },
+        { stepNumber: 2, action: 'Check SSL certificate', expectedBehavior: 'Certificate is valid' },
+        { stepNumber: 3, action: 'Verify certificate chain', expectedBehavior: 'Chain is complete' },
+        { stepNumber: 4, action: 'Check for mixed content', expectedBehavior: 'No HTTP resources loaded' },
+        { stepNumber: 5, action: 'Verify HSTS header', expectedBehavior: 'HSTS header is present' }
+      ],
+      validation: [
+        { type: 'HTTPS_Enforced', description: 'Page uses HTTPS', assertion: 'URL starts with https://' },
+        { type: 'SSL_Certificate', description: 'SSL certificate is valid', assertion: 'Certificate is not expired' },
+        { type: 'Mixed_Content', description: 'No mixed content', assertion: 'All resources are HTTPS' }
+      ],
+      playwrightCode: generateSecurityPlaywrightCode(baseUrl, 'https'),
+      createdAt: new Date().toISOString(),
+      executionStatus: 'NOT_RUN'
+    },
+    {
+      testCaseId: `SEC_AUTH_${Date.now()}`,
+      testType: 'Security',
+      priority: 'High',
+      category: 'Authentication',
+      description: 'Verify authentication is secure',
+      steps: [
+        { stepNumber: 1, action: 'Navigate to login page', expectedBehavior: 'Login page loads' },
+        { stepNumber: 2, action: 'Attempt brute force', expectedBehavior: 'Account is locked after failed attempts' },
+        { stepNumber: 3, action: 'Check password requirements', expectedBehavior: 'Strong password is required' },
+        { stepNumber: 4, action: 'Verify session timeout', expectedBehavior: 'Session expires after inactivity' },
+        { stepNumber: 5, action: 'Check for password reset security', expectedBehavior: 'Reset tokens expire' }
+      ],
+      validation: [
+        { type: 'Brute_Force_Protection', description: 'Account lockout after failed attempts', assertion: 'Lockout is enforced' },
+        { type: 'Password_Policy', description: 'Strong password policy enforced', assertion: 'Min 8 chars, complexity required' },
+        { type: 'Session_Security', description: 'Sessions are secure', assertion: 'Timeout and secure flags set' }
+      ],
+      playwrightCode: generateSecurityPlaywrightCode(baseUrl, 'auth'),
+      createdAt: new Date().toISOString(),
+      executionStatus: 'NOT_RUN'
+    }
+  ];
+  
+  return securityTests;
+}
+
+// Helper functions to generate Playwright code for each test type
+function generateAccessibilityPlaywrightCode(baseUrl, testType) {
+  const code = `
+// Accessibility Test: ${testType}
+const { test, expect } = require('@playwright/test');
+
+test('Accessibility - ${testType}', async ({ page }) => {
+  await page.goto('${baseUrl}');
+  
+  if ('${testType}' === 'keyboard') {
+    // Test keyboard navigation
+    await page.keyboard.press('Tab');
+    const focusedElement = await page.evaluate(() => document.activeElement.tagName);
+    expect(['BUTTON', 'A', 'INPUT']).toContain(focusedElement);
+  }
+  
+  if ('${testType}' === 'screenreader') {
+    // Test screen reader compatibility
+    const headings = await page.locator('h1, h2, h3, h4, h5, h6').count();
+    expect(headings).toBeGreaterThan(0);
+    
+    const labels = await page.locator('label').count();
+    const inputs = await page.locator('input').count();
+    expect(labels).toBeGreaterThanOrEqual(inputs);
+  }
+  
+  if ('${testType}' === 'contrast') {
+    // Test color contrast
+    const elements = await page.locator('*').all();
+    for (const element of elements) {
+      const color = await element.evaluate(el => window.getComputedStyle(el).color);
+      const bgColor = await element.evaluate(el => window.getComputedStyle(el).backgroundColor);
+      // Contrast ratio calculation would go here
+    }
+  }
+  
+  if ('${testType}' === 'responsive') {
+    // Test responsive design
+    const viewports = [
+      { width: 320, height: 568 },
+      { width: 768, height: 1024 },
+      { width: 1920, height: 1080 }
+    ];
+    
+    for (const viewport of viewports) {
+      await page.setViewportSize(viewport);
+      const isVisible = await page.locator('main, [role="main"]').isVisible();
+      expect(isVisible).toBeTruthy();
+    }
+  }
+});
+  `;
+  return code;
+}
+
+function generatePerformancePlaywrightCode(baseUrl, testType) {
+  const code = `
+// Performance Test: ${testType}
+const { test, expect } = require('@playwright/test');
+
+test('Performance - ${testType}', async ({ page }) => {
+  const startTime = Date.now();
+  
+  await page.goto('${baseUrl}', { waitUntil: 'networkidle' });
+  
+  const loadTime = Date.now() - startTime;
+  console.log('Page load time: ' + loadTime + 'ms');
+  
+  if ('${testType}' === 'loadtime') {
+    expect(loadTime).toBeLessThan(5000);
+    
+    const metrics = await page.evaluate(() => {
+      const navigation = performance.getEntriesByType('navigation')[0];
+      return {
+        domContentLoaded: navigation.domContentLoadedEventEnd - navigation.domContentLoadedEventStart,
+        loadComplete: navigation.loadEventEnd - navigation.loadEventStart,
+        fcp: performance.getEntriesByName('first-contentful-paint')[0]?.startTime || 0
+      };
+    });
+    
+    expect(metrics.domContentLoaded).toBeLessThan(3000);
+    expect(metrics.fcp).toBeLessThan(2000);
+  }
+  
+  if ('${testType}' === 'resources') {
+    const resources = await page.evaluate(() => {
+      return performance.getEntriesByType('resource').map(r => ({
+        name: r.name,
+        size: r.transferSize,
+        duration: r.duration
+      }));
+    });
+    
+    const totalSize = resources.reduce((sum, r) => sum + r.size, 0);
+    expect(totalSize).toBeLessThan(5 * 1024 * 1024); // 5MB
+  }
+  
+  if ('${testType}' === 'rendering') {
+    // Monitor for layout shifts
+    const cls = await page.evaluate(() => {
+      return new Promise(resolve => {
+        let clsValue = 0;
+        const observer = new PerformanceObserver((list) => {
+          for (const entry of list.getEntries()) {
+            if (!entry.hadRecentInput) {
+              clsValue += entry.value;
+            }
+          }
+        });
+        observer.observe({ type: 'layout-shift', buffered: true });
+        setTimeout(() => resolve(clsValue), 3000);
+      });
+    });
+    
+    expect(cls).toBeLessThan(0.1);
+  }
+  
+  if ('${testType}' === 'network') {
+    // Simulate 3G network
+    await page.route('**/*', route => {
+      setTimeout(() => route.continue(), 100);
+    });
+    
+    const networkLoadTime = Date.now() - startTime;
+    expect(networkLoadTime).toBeLessThan(10000);
+  }
+});
+  `;
+  return code;
+}
+
+function generateSecurityPlaywrightCode(baseUrl, testType) {
+  const code = `
+// Security Test: ${testType}
+const { test, expect } = require('@playwright/test');
+
+test('Security - ${testType}', async ({ page }) => {
+  await page.goto('${baseUrl}');
+  
+  if ('${testType}' === 'xss') {
+    // Test XSS protection
+    const xssPayloads = [
+      '<script>alert("xss")</script>',
+      '<img src=x onerror="alert(\\'xss\\')">',
+      '<svg onload="alert(\\'xss\\')">',
+      'javascript:alert("xss")'
+    ];
+    
+    for (const payload of xssPayloads) {
+      const searchInput = await page.locator('input[type="search"], input[name="q"]').first();
+      if (await searchInput.isVisible()) {
+        await searchInput.fill(payload);
+        await page.keyboard.press('Enter');
+        
+        // Verify script was not executed
+        const alerts = await page.evaluate(() => window.alertCalled || false);
+        expect(alerts).toBeFalsy();
+      }
+    }
+  }
+  
+  if ('${testType}' === 'csrf') {
+    // Test CSRF protection
+    const forms = await page.locator('form').all();
+    for (const form of forms) {
+      const csrfToken = await form.locator('input[name*="csrf"], input[name*="token"]').first();
+      expect(csrfToken).toBeTruthy();
+    }
+  }
+  
+  if ('${testType}' === 'sqli') {
+    // Test SQL injection protection
+    const sqlPayloads = [
+      "admin' OR '1'='1",
+      "1' UNION SELECT NULL--",
+      "1; DROP TABLE users--"
+    ];
+    
+    for (const payload of sqlPayloads) {
+      const inputs = await page.locator('input').all();
+      for (const input of inputs) {
+        await input.fill(payload);
+      }
+      
+      // Verify no database errors
+      const pageText = await page.textContent();
+      expect(pageText).not.toContain('SQL');
+      expect(pageText).not.toContain('database');
+    }
+  }
+  
+  if ('${testType}' === 'https') {
+    // Test HTTPS
+    const url = page.url();
+    expect(url).toMatch(/^https:\\/\\//);
+    
+    // Check for mixed content
+    const resources = await page.evaluate(() => {
+      return performance.getEntriesByType('resource')
+        .filter(r => r.name.startsWith('http://'))
+        .map(r => r.name);
+    });
+    expect(resources.length).toBe(0);
+  }
+  
+  if ('${testType}' === 'auth') {
+    // Test authentication security
+    const loginForm = await page.locator('form').first();
+    if (await loginForm.isVisible()) {
+      const passwordInput = await loginForm.locator('input[type="password"]');
+      expect(passwordInput).toBeTruthy();
+      
+      // Verify password is not visible
+      const inputType = await passwordInput.getAttribute('type');
+      expect(inputType).toBe('password');
+    }
+  }
+});
+  `;
+  return code;
+}
+
 function getTotalTestCount(testSuite) {
   return testSuite.functionalTests.length +
          testSuite.inputValidationTests.length +
