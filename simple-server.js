@@ -1314,6 +1314,7 @@ function generateInstructionBasedTests(instructions, baseUrl) {
     
     // Check if this is a standalone "Enter 'value'" that should be treated as search
     // IMPORTANT: Only treat as search if it's TRULY standalone (no field name mentioned)
+    // AND the next line specifically mentions "search" (not just any "click")
     let isStandaloneEnter = false;
     if (line.match(/^(?:enter|type|fill)\s+[""''""]([^""''"]+)[""''"]\s*$/i) && 
         !line.toLowerCase().includes('in ') && 
@@ -1323,10 +1324,10 @@ function generateInstructionBasedTests(instructions, baseUrl) {
         !line.toLowerCase().includes('email') &&
         !line.toLowerCase().includes('phone') &&
         !line.toLowerCase().includes('name')) {
-      // Check if next line contains "search" or "click"
+      // Check if next line contains "search" specifically (not just any click)
       if (index + 1 < lines.length) {
         const nextLine = lines[index + 1].toLowerCase();
-        isStandaloneEnter = nextLine.includes('search') || nextLine.includes('click');
+        isStandaloneEnter = nextLine.includes('search');
       }
     }
     

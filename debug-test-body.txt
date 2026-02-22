@@ -1,22 +1,38 @@
-console.log('🚀 Starting test: TestCase_1771755040792');
+console.log('🚀 Starting test: TestCase_1771755835871');
 
   // Step 1: Navigate to page
   console.log('📋 Step 1: Navigate to https://practicetestautomation.com');
   await page.goto('https://practicetestautomation.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
   console.log('✅ Page loaded');
 
-  // Step 2: enter username
-  console.log('📋 Step 2: enter username');
+  // Step 2: click Practice
+  console.log('📋 Step 2: click Practice');
+  const btn_practice_0 = page.locator('button, a, [role="button"]').filter({ hasText: 'Practice' }).first();
+  await btn_practice_0.waitFor({ state: 'visible', timeout: 10000 });
+  await btn_practice_0.click();
+  console.log('✅ Practice clicked');
+  await page.waitForTimeout(1000);
+
+  // Step 3: click Test Login Page
+  console.log('📋 Step 3: click Test Login Page');
+  const btn_test_login_1 = page.locator('button, a, [role="button"]').filter({ hasText: 'Test Login Page' }).first();
+  await btn_test_login_1.waitFor({ state: 'visible', timeout: 10000 });
+  await btn_test_login_1.click();
+  console.log('✅ Test Login Page clicked');
+  await page.waitForTimeout(1000);
+
+  // Step 4: enter username
+  console.log('📋 Step 4: enter username');
   const usernameField_0 = page.locator('#user-name, #username, [name="username"], [name="user"], [data-test="username"]').first();
   await usernameField_0.waitFor({ state: 'visible', timeout: 10000 });
   await usernameField_0.fill('student');
   console.log('✅ username filled with: student');
 
-  // Step 3: enter search
-  console.log('📋 Step 3: enter search');
+  // Step 5: enter search
+  console.log('📋 Step 5: enter search');
   // Check if this is a Google search
-  const currentUrl = page.url();
-  if (currentUrl.includes('google.com')) {
+  const currentUrl_1 = page.url();
+  if (currentUrl_1.includes('google.com')) {
     // Navigate directly to Google search results
     const searchQuery = encodeURIComponent('student');
     await page.goto(`https://www.google.com/search?q=${searchQuery}`, { waitUntil: 'networkidle' });
@@ -29,18 +45,18 @@ console.log('🚀 Starting test: TestCase_1771755040792');
     console.log('✅ search filled with: student');
   }
 
-  // Step 4: enter password
-  console.log('📋 Step 4: enter password');
+  // Step 6: enter password
+  console.log('📋 Step 6: enter password');
   const passwordField_2 = page.locator('#password, [name="password"], [data-test="password"], input[type="password"]').first();
   await passwordField_2.waitFor({ state: 'visible', timeout: 10000 });
   await passwordField_2.fill('Password123');
   console.log('✅ password filled with: Password123');
 
-  // Step 5: enter search
-  console.log('📋 Step 5: enter search');
+  // Step 7: enter search
+  console.log('📋 Step 7: enter search');
   // Check if this is a Google search
-  const currentUrl = page.url();
-  if (currentUrl.includes('google.com')) {
+  const currentUrl_3 = page.url();
+  if (currentUrl_3.includes('google.com')) {
     // Navigate directly to Google search results
     const searchQuery = encodeURIComponent('Password123');
     await page.goto(`https://www.google.com/search?q=${searchQuery}`, { waitUntil: 'networkidle' });
@@ -53,11 +69,11 @@ console.log('🚀 Starting test: TestCase_1771755040792');
     console.log('✅ search filled with: Password123');
   }
 
-  // Step 6: click Login
-  console.log('📋 Step 6: click Login');
-  const loginBtn_0 = page.locator('button:has-text("Login"), button:has-text("Sign in"), #login-button, [data-test="login-button"]').first();
-  await loginBtn_0.waitFor({ state: 'visible', timeout: 10000 });
-  await loginBtn_0.click();
+  // Step 8: click Login
+  console.log('📋 Step 8: click Login');
+  const loginBtn_2 = page.locator('button:has-text("Login"), button:has-text("Sign in"), #login-button, [data-test="login-button"]').first();
+  await loginBtn_2.waitFor({ state: 'visible', timeout: 10000 });
+  await loginBtn_2.click();
   console.log('✅ Login button clicked');
   await page.waitForTimeout(2000);
 
@@ -157,5 +173,5 @@ console.log('🚀 Starting test: TestCase_1771755040792');
   console.log('✅ No login errors detected');
 
   // Take final screenshot
-  await page.screenshot({ path: 'test-results/TestCase_1771755040792-final.png', fullPage: true });
+  await page.screenshot({ path: 'test-results/TestCase_1771755835871-final.png', fullPage: true });
   console.log('✅ Test completed successfully');
