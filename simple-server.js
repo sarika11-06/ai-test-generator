@@ -1956,6 +1956,49 @@ function generateClickCode(lines, action, varCounter) {
     lines.push(`    await page.waitForTimeout(2000);`);
     lines.push(`  }`);
     lines.push(`  console.log('✅ Search results page loaded');`);
+  } else if (target.match(/first\s+link/i) || target.match(/first\s+result/i) || target.match(/first\s+video/i)) {
+    // Handle clicking first link/result/video from search results
+    const firstLinkVarName = `firstLink_${varCounter}`;
+    lines.push(`  // Click first link/result from the page`);
+    lines.push(`  // Try multiple selectors for different sites (YouTube, Google, etc.)`);
+    lines.push(`  const firstLinkSelectors = [`);
+    lines.push(`    'a#video-title',  // YouTube video title`);
+    lines.push(`    'a.yt-simple-endpoint',  // YouTube video link`);
+    lines.push(`    'h3 a',  // Google search result`);
+    lines.push(`    'a[href*="watch"]',  // YouTube watch link`);
+    lines.push(`    'a[href*="v="]',  // YouTube video URL`);
+    lines.push(`    'a:first-of-type',  // First link on page`);
+    lines.push(`    'a[role="link"]:first-of-type'  // First accessible link`);
+    lines.push(`  ];`);
+    lines.push(``);
+    lines.push(`  let linkClicked = false;`);
+    lines.push(`  for (const selector of firstLinkSelectors) {`);
+    lines.push(`    try {`);
+    lines.push(`      const ${firstLinkVarName} = page.locator(selector).first();`);
+    lines.push(`      const count = await ${firstLinkVarName}.count();`);
+    lines.push(`      if (count > 0) {`);
+    lines.push(`        await ${firstLinkVarName}.waitFor({ state: 'visible', timeout: 5000 });`);
+    lines.push(`        await ${firstLinkVarName}.click();`);
+    lines.push(`        console.log('✅ First link clicked');`);
+    lines.push(`        linkClicked = true;`);
+    lines.push(`        break;`);
+    lines.push(`      }`);
+    lines.push(`    } catch (e) {`);
+    lines.push(`      // Try next selector`);
+    lines.push(`    }`);
+    lines.push(`  }`);
+    lines.push(``);
+    lines.push(`  if (!linkClicked) {`);
+    lines.push(`    throw new Error('Could not find first link to click');`);
+    lines.push(`  }`);
+    lines.push(``);
+    lines.push(`  // Wait for page to load after clicking link`);
+    lines.push(`  await page.waitForTimeout(2000);`);
+    lines.push(`  try {`);
+    lines.push(`    await page.waitForNavigation({ waitUntil: 'networkidle', timeout: 10000 }).catch(() => {});`);
+    lines.push(`  } catch (e) {`);
+    lines.push(`    console.log('Navigation wait timed out, continuing...');`);
+    lines.push(`  }`);
   } else {
     // Use a unique variable name based on the target to avoid conflicts
     // Remove quotes and special characters from target for variable name

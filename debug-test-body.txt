@@ -1,177 +1,35 @@
-console.log('🚀 Starting test: TestCase_1771756254688');
+console.log('🚀 Starting test: TestCase_1771757556204');
 
   // Step 1: Navigate to page
-  console.log('📋 Step 1: Navigate to https://practicetestautomation.com');
-  await page.goto('https://practicetestautomation.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
+  console.log('📋 Step 1: Navigate to https://www.youtube.com/');
+  await page.goto('https://www.youtube.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
   console.log('✅ Page loaded');
 
-  // Step 2: click Practice
-  console.log('📋 Step 2: click Practice');
-  const btn_practice_0 = page.locator('button, a, [role="button"]').filter({ hasText: 'Practice' }).first();
-  await btn_practice_0.waitFor({ state: 'visible', timeout: 10000 });
-  await btn_practice_0.click();
-  console.log('✅ Practice clicked');
-  await page.waitForTimeout(1000);
-
-  // Step 3: click Test Login Page
-  console.log('📋 Step 3: click Test Login Page');
-  const btn_test_login_1 = page.locator('button, a, [role="button"]').filter({ hasText: 'Test Login Page' }).first();
-  await btn_test_login_1.waitFor({ state: 'visible', timeout: 10000 });
-  await btn_test_login_1.click();
-  console.log('✅ Test Login Page clicked');
-  await page.waitForTimeout(1000);
-
-  // Step 4: enter username
-  console.log('📋 Step 4: enter username');
-  const usernameField_0 = page.locator('#user-name, #username, [name="username"], [name="user"], [data-test="username"]').first();
-  await usernameField_0.waitFor({ state: 'visible', timeout: 10000 });
-  await usernameField_0.fill('student');
-  console.log('✅ username filled with: student');
-
-  // Step 5: enter search
-  console.log('📋 Step 5: enter search');
+  // Step 2: enter search
+  console.log('📋 Step 2: enter search');
   // Check if this is a Google search
-  const currentUrl_1 = page.url();
-  if (currentUrl_1.includes('google.com')) {
+  const currentUrl_0 = page.url();
+  if (currentUrl_0.includes('google.com')) {
     // Navigate directly to Google search results
-    const searchQuery = encodeURIComponent('student');
+    const searchQuery = encodeURIComponent('Music');
     await page.goto(`https://www.google.com/search?q=${searchQuery}`, { waitUntil: 'networkidle' });
-    console.log('✅ Navigated to Google search results for: student');
+    console.log('✅ Navigated to Google search results for: Music');
   } else {
     // For non-Google sites, use the search field
-    const searchField_1 = page.locator('input[name="q"], #search_product, [name="search"], input[type="search"], [placeholder*="Search"], input[aria-label*="Search"], textarea[aria-label*="Search"]').first();
-    await searchField_1.waitFor({ state: 'visible', timeout: 10000 });
-    await searchField_1.fill('student');
-    console.log('✅ search filled with: student');
+    const searchField_0 = page.locator('input[name="q"], #search_product, [name="search"], input[type="search"], [placeholder*="Search"], input[aria-label*="Search"], textarea[aria-label*="Search"]').first();
+    await searchField_0.waitFor({ state: 'visible', timeout: 10000 });
+    await searchField_0.fill('Music');
+    console.log('✅ search filled with: Music');
   }
 
-  // Step 6: enter password
-  console.log('📋 Step 6: enter password');
-  const passwordField_2 = page.locator('#password, [name="password"], [data-test="password"], input[type="password"]').first();
-  await passwordField_2.waitFor({ state: 'visible', timeout: 10000 });
-  await passwordField_2.fill('Password123');
-  console.log('✅ password filled with: Password123');
-
-  // Step 7: enter search
-  console.log('📋 Step 7: enter search');
-  // Check if this is a Google search
-  const currentUrl_3 = page.url();
-  if (currentUrl_3.includes('google.com')) {
-    // Navigate directly to Google search results
-    const searchQuery = encodeURIComponent('Password123');
-    await page.goto(`https://www.google.com/search?q=${searchQuery}`, { waitUntil: 'networkidle' });
-    console.log('✅ Navigated to Google search results for: Password123');
-  } else {
-    // For non-Google sites, use the search field
-    const searchField_3 = page.locator('input[name="q"], #search_product, [name="search"], input[type="search"], [placeholder*="Search"], input[aria-label*="Search"], textarea[aria-label*="Search"]').first();
-    await searchField_3.waitFor({ state: 'visible', timeout: 10000 });
-    await searchField_3.fill('Password123');
-    console.log('✅ search filled with: Password123');
-  }
-
-  // Step 8: click Login
-  console.log('📋 Step 8: click Login');
-  const loginBtn_2 = page.locator('button:has-text("Login"), button:has-text("Sign in"), #login-button, [data-test="login-button"]').first();
-  await loginBtn_2.waitFor({ state: 'visible', timeout: 10000 });
-  await loginBtn_2.click();
-  console.log('✅ Login button clicked');
+  // Step 3: click search
+  console.log('📋 Step 3: click search');
+  const searchBtn_0 = page.locator('#submit_search, button[type="submit"]:has(i.fa-search), button:has-text("Search"), [aria-label*="Search"]').first();
+  await searchBtn_0.waitFor({ state: 'visible', timeout: 10000 });
+  await searchBtn_0.click();
+  console.log('✅ Search button clicked');
   await page.waitForTimeout(2000);
 
-  // AUTO-DETECT: Check for login errors - COMPREHENSIVE CHECK
-  let errorFound = false;
-  let errorMessage = '';
-
-  // Strategy 1: Check common error element selectors
-  const errorSelectors = [
-    '[class*="error"]',
-    '[class*="alert"]',
-    '[class*="danger"]',
-    '[role="alert"]',
-    '.error-message',
-    '.alert-danger',
-    '.invalid-feedback',
-    'span[style*="color"]',
-    'p[style*="color"]',
-    'div[style*="red"]',
-    '[class*="red"]',
-    '[class*="fail"]',
-    '[class*="invalid"]'
-  ];
-
-  for (const selector of errorSelectors) {
-    try {
-      const elements = page.locator(selector);
-      const count = await elements.count();
-      if (count > 0) {
-        for (let i = 0; i < Math.min(count, 5); i++) {
-          const text = await elements.nth(i).textContent();
-          if (text) {
-            const lowerText = text.toLowerCase();
-            if (lowerText.includes('error') || lowerText.includes('incorrect') || lowerText.includes('invalid') || lowerText.includes('failed') || lowerText.includes('wrong')) {
-              errorFound = true;
-              errorMessage = text.trim();
-              console.log('❌ LOGIN ERROR DETECTED (Selector): ' + errorMessage);
-              break;
-            }
-          }
-        }
-        if (errorFound) break;
-      }
-    } catch (e) {
-      // Continue checking other selectors
-    }
-  }
-
-  // Strategy 2: Check entire page HTML for error keywords
-  if (!errorFound) {
-    try {
-      const pageHTML = await page.content();
-      const lowerHTML = pageHTML.toLowerCase();
-      if (lowerHTML.includes('your email or password is incorrect') || 
-          lowerHTML.includes('login failed') || 
-          lowerHTML.includes('invalid credentials') || 
-          lowerHTML.includes('authentication failed') || 
-          lowerHTML.includes('email or password') || 
-          lowerHTML.includes('incorrect')) {
-        errorFound = true;
-        errorMessage = 'Login error detected in page HTML';
-        console.log('❌ LOGIN ERROR DETECTED (HTML): ' + errorMessage);
-      }
-    } catch (e) {
-      console.log('Could not check page HTML');
-    }
-  }
-
-  // Strategy 3: Check if we're still on login page (login failed)
-  if (!errorFound) {
-    try {
-      const currentPageUrl = page.url();
-      const pageTitle = await page.title();
-      const hasLoginForm = await page.locator('input[type="password"]').count() > 0;
-      
-      // If we're still on login page with password field visible, login likely failed
-      if (hasLoginForm && (currentPageUrl.includes('login') || pageTitle.toLowerCase().includes('login'))) {
-        // Double-check by looking for any visible error text
-        const allText = await page.textContent();
-        if (allText && (allText.toLowerCase().includes('incorrect') || allText.toLowerCase().includes('error'))) {
-          errorFound = true;
-          errorMessage = 'Login form still visible - login likely failed';
-          console.log('❌ LOGIN ERROR DETECTED (Still on login page): ' + errorMessage);
-        }
-      }
-    } catch (e) {
-      console.log('Could not check login page status');
-    }
-  }
-
-  if (errorFound) {
-    // Take screenshot for debugging
-    await page.screenshot({ path: 'test-results/TestCase_error_debug.png', fullPage: true });
-    throw new Error('Login failed with error: ' + errorMessage);
-  }
-
-  console.log('✅ No login errors detected');
-
   // Take final screenshot
-  await page.screenshot({ path: 'test-results/TestCase_1771756254688-final.png', fullPage: true });
+  await page.screenshot({ path: 'test-results/TestCase_1771757556204-final.png', fullPage: true });
   console.log('✅ Test completed successfully');
