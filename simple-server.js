@@ -1368,11 +1368,19 @@ function generateInstructionBasedTests(instructions, baseUrl) {
     }
     
     // ENHANCED: Parse select/dropdown actions with better patterns
+    // Supports: select "value" from field, choose "value" from dropdown, pick "value" in dropdown
     const selectMatch = line.match(/(?:select|choose|pick)\s+[""''""]([^""''"]+)[""''"]\s+(?:from|in)\s+(?:the\s+)?(\w+(?:\s+\w+)?)/i) ||
-                       line.match(/(?:select|choose|pick)\s+(?:the\s+)?(\w+(?:\s+\w+)?)\s+(?:as|to)\s+[""''""]([^""''"]+)[""''"]/i);
+                       line.match(/(?:select|choose|pick)\s+(?:the\s+)?(\w+(?:\s+\w+)?)\s+(?:as|to)\s+[""''""]([^""''"]+)[""''"]/i) ||
+                       line.match(/(?:choose|select)\s+[""''""]([^""''"]+)[""''"]\s+(?:from\s+)?(?:the\s+)?dropdown/i);
     if (selectMatch) {
-      const field = selectMatch[2] || selectMatch[1];
-      const value = selectMatch[1] || selectMatch[2];
+      let field = selectMatch[2] || selectMatch[1];
+      let value = selectMatch[1] || selectMatch[2];
+      
+      // If no field name found, use "dropdown" as default
+      if (!field || field === value) {
+        field = 'dropdown';
+      }
+      
       parsedActions.push({
         type: 'select',
         field: field.toLowerCase().replace(/\s+/g, ''),
@@ -2020,10 +2028,67 @@ function generateSelectCode(lines, action, varCounter) {
   const escapedValue = value.replace(/'/g, "\\'");
   
   const selectVarName = `${fieldName}Select_${varCounter}`;
-  lines.push(`  const ${selectVarName} = page.locator('select#${fieldName}, select[name="${fieldName}"]').first();`);
-  lines.push(`  await ${selectVarName}.waitFor({ state: 'visible', timeout: 10000 });`);
-  lines.push(`  await ${selectVarName}.selectOption('${escapedValue}');`);
-  lines.push(`  console.log('✅ Selected ${escapedValue} from ${fieldName}');`);
+  
+  // Try multiple strategies for selecting from dropdown
+  lines.push(`  // Select "${escapedValue}" from ${fieldName}`);
+  lines.push(`  let selectionSuccess = false;`);
+  lines.push(``);
+  lines.push(`  // Strategy 1: Try standard HTML select element`);
+  lines.push(`  try {`);
+  lines.push(`    const ${selectVarName} = page.locator('select#${fieldName}, select[name="${fieldName}"]').first();`);
+  lines.push(`    const count = await ${selectVarName}.count();`);
+  lines.push(`    if (count > 0) {`);
+  lines.push(`      await ${selectVarName}.waitFor({ state: 'visible', timeout: 5000 });`);
+  lines.push(`      await ${selectVarName}.selectOption('${escapedValue}');`);
+  lines.push(`      console.log('✅ Selected "${escapedValue}" from ${fieldName} (HTML select)');`);
+  lines.push(`      selectionSuccess = true;`);
+  lines.push(`    }`);
+  lines.push(`  } catch (e) {`);
+  lines.push(`    // Continue to next strategy`);
+  lines.push(`  }`);
+  lines.push(``);
+  lines.push(`  // Strategy 2: Try clicking dropdown option by text (for custom dropdowns)`);
+  lines.push(`  if (!selectionSuccess) {`);
+  lines.push(`    try {`);
+  lines.push(`      // First, try to find and click the option directly`);
+  lines.push(`      const option = page.locator('[role="option"]:has-text("${escapedValue}"), li:has-text("${escapedValue}"), div:has-text("${escapedValue}"):visible').first();`);
+  lines.push(`      const optionCount = await option.count();`);
+  lines.push(`      if (optionCount > 0) {`);
+  lines.push(`        await option.waitFor({ state: 'visible', timeout: 5000 });`);
+  lines.push(`        await option.click();`);
+  lines.push(`        console.log('✅ Selected "${escapedValue}" from dropdown (custom dropdown)');`);
+  lines.push(`        selectionSuccess = true;`);
+  lines.push(`      }`);
+  lines.push(`    } catch (e) {`);
+  lines.push(`      // Continue to next strategy`);
+  lines.push(`    }`);
+  lines.push(`  }`);
+  lines.push(``);
+  lines.push(`  // Strategy 3: Try finding dropdown by label and then selecting option`);
+  lines.push(`  if (!selectionSuccess) {`);
+  lines.push(`    try {`);
+  lines.push(`      // Look for any dropdown/select element and click it`);
+  lines.push(`      const dropdownTrigger = page.locator('button[aria-haspopup="listbox"], button[aria-haspopup="menu"], [role="combobox"], .dropdown-toggle').first();`);
+  lines.push(`      const triggerCount = await dropdownTrigger.count();`);
+  lines.push(`      if (triggerCount > 0) {`);
+  lines.push(`        await dropdownTrigger.waitFor({ state: 'visible', timeout: 5000 });`);
+  lines.push(`        await dropdownTrigger.click();`);
+  lines.push(`        await page.waitForTimeout(500);`);
+  lines.push(`        // Now try to click the option`);
+  lines.push(`        const option = page.locator('[role="option"]:has-text("${escapedValue}"), li:has-text("${escapedValue}"), div:has-text("${escapedValue}"):visible').first();`);
+  lines.push(`        await option.waitFor({ state: 'visible', timeout: 5000 });`);
+  lines.push(`        await option.click();`);
+  lines.push(`        console.log('✅ Selected "${escapedValue}" from dropdown (after opening)');`);
+  lines.push(`        selectionSuccess = true;`);
+  lines.push(`      }`);
+  lines.push(`    } catch (e) {`);
+  lines.push(`      // Continue to next strategy`);
+  lines.push(`    }`);
+  lines.push(`  }`);
+  lines.push(``);
+  lines.push(`  if (!selectionSuccess) {`);
+  lines.push(`    throw new Error('Could not select "${escapedValue}" from ${fieldName}');`);
+  lines.push(`  }`);
 }
 
 // Helper function to generate checkbox code

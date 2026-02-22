@@ -1,35 +1,18 @@
-console.log('🚀 Starting test: TestCase_1771757556204');
+console.log('🚀 Starting test: TestCase_1771758206958');
 
   // Step 1: Navigate to page
-  console.log('📋 Step 1: Navigate to https://www.youtube.com/');
-  await page.goto('https://www.youtube.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+  console.log('📋 Step 1: Navigate to https://translate.google.co.in/');
+  await page.goto('https://translate.google.co.in/', { waitUntil: 'domcontentloaded', timeout: 30000 });
   console.log('✅ Page loaded');
 
-  // Step 2: enter search
-  console.log('📋 Step 2: enter search');
-  // Check if this is a Google search
-  const currentUrl_0 = page.url();
-  if (currentUrl_0.includes('google.com')) {
-    // Navigate directly to Google search results
-    const searchQuery = encodeURIComponent('Music');
-    await page.goto(`https://www.google.com/search?q=${searchQuery}`, { waitUntil: 'networkidle' });
-    console.log('✅ Navigated to Google search results for: Music');
-  } else {
-    // For non-Google sites, use the search field
-    const searchField_0 = page.locator('input[name="q"], #search_product, [name="search"], input[type="search"], [placeholder*="Search"], input[aria-label*="Search"], textarea[aria-label*="Search"]').first();
-    await searchField_0.waitFor({ state: 'visible', timeout: 10000 });
-    await searchField_0.fill('Music');
-    console.log('✅ search filled with: Music');
-  }
-
-  // Step 3: click search
-  console.log('📋 Step 3: click search');
-  const searchBtn_0 = page.locator('#submit_search, button[type="submit"]:has(i.fa-search), button:has-text("Search"), [aria-label*="Search"]').first();
-  await searchBtn_0.waitFor({ state: 'visible', timeout: 10000 });
-  await searchBtn_0.click();
-  console.log('✅ Search button clicked');
-  await page.waitForTimeout(2000);
+  // Step 2: click Arrow button and choose Hindi from dropdown
+  console.log('📋 Step 2: click Arrow button and choose Hindi from dropdown');
+  const btn_arrow_butt_0 = page.locator('button, a, [role="button"]').filter({ hasText: 'Arrow button and choose Hindi from dropdown' }).first();
+  await btn_arrow_butt_0.waitFor({ state: 'visible', timeout: 10000 });
+  await btn_arrow_butt_0.click();
+  console.log('✅ Arrow button and choose Hindi from dropdown clicked');
+  await page.waitForTimeout(1000);
 
   // Take final screenshot
-  await page.screenshot({ path: 'test-results/TestCase_1771757556204-final.png', fullPage: true });
+  await page.screenshot({ path: 'test-results/TestCase_1771758206958-final.png', fullPage: true });
   console.log('✅ Test completed successfully');
