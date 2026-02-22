@@ -1,4 +1,4 @@
-console.log('🚀 Starting test: TestCase_1771755835871');
+console.log('🚀 Starting test: TestCase_1771756254688');
 
   // Step 1: Navigate to page
   console.log('📋 Step 1: Navigate to https://practicetestautomation.com');
@@ -173,5 +173,5 @@ console.log('🚀 Starting test: TestCase_1771755835871');
   console.log('✅ No login errors detected');
 
   // Take final screenshot
-  await page.screenshot({ path: 'test-results/TestCase_1771755835871-final.png', fullPage: true });
+  await page.screenshot({ path: 'test-results/TestCase_1771756254688-final.png', fullPage: true });
   console.log('✅ Test completed successfully');
