@@ -1,18 +1,86 @@
-console.log('🚀 Starting test: TestCase_1771758206958');
-
-  // Step 1: Navigate to page
-  console.log('📋 Step 1: Navigate to https://translate.google.co.in/');
-  await page.goto('https://translate.google.co.in/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-  console.log('✅ Page loaded');
-
-  // Step 2: click Arrow button and choose Hindi from dropdown
-  console.log('📋 Step 2: click Arrow button and choose Hindi from dropdown');
-  const btn_arrow_butt_0 = page.locator('button, a, [role="button"]').filter({ hasText: 'Arrow button and choose Hindi from dropdown' }).first();
-  await btn_arrow_butt_0.waitFor({ state: 'visible', timeout: 10000 });
-  await btn_arrow_butt_0.click();
-  console.log('✅ Arrow button and choose Hindi from dropdown clicked');
-  await page.waitForTimeout(1000);
-
-  // Take final screenshot
-  await page.screenshot({ path: 'test-results/TestCase_1771758206958-final.png', fullPage: true });
-  console.log('✅ Test completed successfully');
+console.log('🚀 Starting API test: GET  - Success Path');
+  
+  // ═══════════════════════════════════════════════════════════
+  // STEP 1: SEND GET REQUEST
+  // ═══════════════════════════════════════════════════════════
+  console.log('📋 Step 1: Send GET request to ');
+  
+  const startTime = Date.now();
+  
+  const response = await request.get('https://jsonfakery.com/movies/paginated', {
+    headers: {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer <token>"
+},
+  });
+  
+  const responseTime = Date.now() - startTime;
+  
+  console.log(`✅ Request sent successfully`);
+  
+  // ═══════════════════════════════════════════════════════════
+  // STEP 2: STORE RESPONSE STATUS CODE
+  // ═══════════════════════════════════════════════════════════
+  console.log('📋 Step 2: Store response status code');
+  
+  const statusCode = response.status();
+  console.log(`✅ Status Code: ${statusCode}`);
+  
+  // ═══════════════════════════════════════════════════════════
+  // STEP 3: STORE RESPONSE BODY
+  // ═══════════════════════════════════════════════════════════
+  console.log('📋 Step 3: Store response body');
+  
+  const responseBody = await response.json();
+  console.log(`✅ Response Body Retrieved`);
+  
+  // ═══════════════════════════════════════════════════════════
+  // STEP 4: MEASURE RESPONSE TIME
+  // ═══════════════════════════════════════════════════════════
+  console.log('📋 Step 4: Measure response time');
+  console.log(`✅ Response Time: ${responseTime} ms`);
+  
+  // ═══════════════════════════════════════════════════════════
+  // SIGNAL 1: RESPONSE ASSERTIONS (SUCCESS PATH)
+  // ═══════════════════════════════════════════════════════════
+  console.log('📋 Step 5: Verify response assertions');
+  
+  // ASSERTION 1: Status code equals 200
+  console.log('  → Expect response status code equals 200');
+  expect(statusCode).toBe(200);
+  console.log('  ✅ Status code is 200');
+  
+  // ASSERTION 2: Response body is not empty
+  console.log('  → Expect response body is not empty');
+  expect(responseBody).toBeDefined();
+  expect(responseBody).not.toBeNull();
+  console.log('  ✅ Response body is not empty');
+  
+  // ASSERTION 3: Response is a valid object
+  console.log('  → Expect response is a valid object');
+  expect(typeof responseBody).toBe('object');
+  console.log('  ✅ Response is a valid object');
+  
+  // ASSERTION 4: Response has content
+  console.log('  → Expect response has content');
+  const responseKeys = Object.keys(responseBody);
+  expect(responseKeys.length).toBeGreaterThan(0);
+  console.log(`  ✅ Response has ${responseKeys.length} fields`);
+  
+  // ASSERTION 5: Response time within limit
+  console.log('  → Expect response time within 2000ms');
+  expect(responseTime).toBeLessThan(2000);
+  console.log(`  ✅ Response time ${responseTime}ms < 2000ms`);
+  
+  // ═══════════════════════════════════════════════════════════
+  // SIGNAL 2: STRUCTURED LOGGING SUMMARY
+  // ═══════════════════════════════════════════════════════════
+  console.log('\n📊 Test Execution Summary:');
+  console.log(`  • Endpoint: GET `);
+  console.log(`  • Status Code: ${statusCode}`);
+  console.log(`  • Response Time: ${responseTime}ms`);
+  console.log(`  • Expected Status: 200`);
+  console.log(`  • Performance Threshold: 2000ms`);
+  console.log(`  • Result: SUCCESS ✅`);
+  
+  console.log('\n✅ Test completed successfully');

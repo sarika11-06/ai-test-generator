@@ -1202,6 +1202,10 @@ function generateInstructionBasedTests(instructions, baseUrl) {
   lines.forEach((line, index) => {
     const lowerLine = line.toLowerCase();
     
+    // Skip if line was already processed as part of another action
+    const alreadyProcessed = parsedActions.some(a => a.originalLine === line);
+    if (alreadyProcessed) return;
+    
     // ENHANCED: Parse username/user/email entry with COMPREHENSIVE patterns
     // Supports: enter username "value", fill username "value", type "value" in username, username "value"
     // IMPORTANT: Check for explicit "email" keyword FIRST before treating as username
@@ -1225,6 +1229,7 @@ function generateInstructionBasedTests(instructions, baseUrl) {
         originalLine: line
       });
       console.log(`✅ Detected username: "${value}"`);
+      return;
     }
     
     // ENHANCED: Parse password entry with COMPREHENSIVE patterns
@@ -1246,6 +1251,7 @@ function generateInstructionBasedTests(instructions, baseUrl) {
         originalLine: line
       });
       console.log(`✅ Detected password: "${value}"`);
+      return;
     }
     
     // ENHANCED: Parse email entry (separate from username) with better patterns
@@ -1267,6 +1273,7 @@ function generateInstructionBasedTests(instructions, baseUrl) {
         originalLine: line
       });
       console.log(`✅ Detected email: "${value}"`);
+      return;
     }
     
     // ENHANCED: Parse phone/telephone entry
@@ -1284,6 +1291,7 @@ function generateInstructionBasedTests(instructions, baseUrl) {
         originalLine: line
       });
       console.log(`✅ Detected phone: "${value}"`);
+      return;
     }
     
     // ENHANCED: Parse name fields (firstname, lastname, fullname) - but NOT username
@@ -1304,42 +1312,17 @@ function generateInstructionBasedTests(instructions, baseUrl) {
         originalLine: line
       });
       console.log(`✅ Detected ${fieldName}: "${value}"`);
+      return;
     }
     
     // ENHANCED: Parse type in search bar pattern: "type 'value' in search bar" OR "in search bar, type 'value'" OR "enter 'value' in search"
     // Also detect standalone "Enter 'value'" if followed by "Click on Search button"
-    // CHECK THIS FIRST before custom field detection to avoid false matches
-    // IMPORTANT: Skip search detection if we already matched username/password/email/phone/name on this line
-    const shouldCheckSearch = !usernameMatch && !passwordMatch && !emailMatch && !phoneMatch && !nameMatch;
+    // IMPORTANT: Only detect search if it explicitly mentions "search" in the line
+    const searchMatch = line.match(/(?:type|enter|fill)\s+[""''""]([^""''"]+)[""''"]\s+(?:in|into)\s+(?:the\s+)?search\s+(?:bar|field)?/i) ||
+                       line.match(/(?:in|into)\s+(?:the\s+)?search\s+(?:bar|field),?\s+(?:type|enter|fill)\s+[""''""]([^""''"]+)[""''"]/i);
     
-    const searchMatch = shouldCheckSearch && (
-      line.match(/(?:type|enter|fill)\s+[""''""]([^""''"]+)[""''"]\s+(?:in|into)\s+(?:the\s+)?(?:search\s+)?(?:bar|field)?/i) ||
-      line.match(/(?:in|into)\s+(?:the\s+)?(?:search\s+)?(?:bar|field),?\s+(?:type|enter|fill)\s+[""''""]([^""''"]+)[""''"]/i)
-    );
-    
-    // Check if this is a standalone "Enter 'value'" that should be treated as search
-    // IMPORTANT: Only treat as search if it's TRULY standalone (no field name mentioned)
-    // AND the next line specifically mentions "search" (not just any "click")
-    let isStandaloneEnter = false;
-    if (shouldCheckSearch && line.match(/^(?:enter|type|fill)\s+[""''""]([^""''"]+)[""''"]\s*$/i) && 
-        !line.toLowerCase().includes('in ') && 
-        !line.toLowerCase().includes('into ') &&
-        !line.toLowerCase().includes('username') &&
-        !line.toLowerCase().includes('password') &&
-        !line.toLowerCase().includes('email') &&
-        !line.toLowerCase().includes('phone') &&
-        !line.toLowerCase().includes('name')) {
-      // Check if next line contains "search" specifically (not just any click)
-      if (index + 1 < lines.length) {
-        const nextLine = lines[index + 1].toLowerCase();
-        isStandaloneEnter = nextLine.includes('search');
-      }
-    }
-    
-    const standaloneEnterMatch = isStandaloneEnter ? line.match(/^(?:enter|type|fill)\s+[""''""]([^""''"]+)[""''"]/i) : null;
-    
-    if (searchMatch || standaloneEnterMatch) {
-      const value = searchMatch ? searchMatch[1] : standaloneEnterMatch[1];
+    if (searchMatch) {
+      const value = searchMatch[1];
       parsedActions.push({
         type: 'enter',
         field: 'search',
@@ -1348,39 +1331,61 @@ function generateInstructionBasedTests(instructions, baseUrl) {
         originalLine: line
       });
       console.log(`✅ Detected search input: "${value}"`);
-    } else if (shouldCheckSearch) {
-      // ENHANCED: Parse ANY custom field entry with universal pattern
-      // This catches fields like: address, city, state, zipcode, company, etc.
-      const customFieldMatch = line.match(/(?:enter|fill|type|input|set)\s+(?:the\s+)?(?:value\s+)?(?:of\s+)?(\w+(?:\s+\w+)?)\s+(?:as|to|with|field)?\s*[""''""]([^""''"]+)[""''"]/i);
-      if (customFieldMatch) {
-        const fieldName = customFieldMatch[1].toLowerCase().replace(/\s+/g, '');
-        const value = customFieldMatch[2];
-        formData[fieldName] = value;
-        parsedActions.push({
-          type: 'enter',
-          field: fieldName,
-          value: value,
-          step: index + 1,
-          originalLine: line
-        });
-        console.log(`✅ Detected custom field "${fieldName}": "${value}"`);
+      return;
+    }
+    
+    // Check for standalone "Enter 'value'" ONLY if next line contains "search"
+    const isStandaloneEnter = line.match(/^(?:enter|type|fill)\s+[""''""]([^""''"]+)[""''"]\s*$/i) && 
+                              !line.toLowerCase().includes('in ') && 
+                              !line.toLowerCase().includes('into ') &&
+                              !line.toLowerCase().includes('username') &&
+                              !line.toLowerCase().includes('password') &&
+                              !line.toLowerCase().includes('email') &&
+                              !line.toLowerCase().includes('phone') &&
+                              !line.toLowerCase().includes('name');
+    
+    if (isStandaloneEnter && index + 1 < lines.length) {
+      const nextLine = lines[index + 1].toLowerCase();
+      if (nextLine.includes('search')) {
+        const standaloneMatch = line.match(/^(?:enter|type|fill)\s+[""''""]([^""''"]+)[""''"]/i);
+        if (standaloneMatch) {
+          parsedActions.push({
+            type: 'enter',
+            field: 'search',
+            value: standaloneMatch[1],
+            step: index + 1,
+            originalLine: line
+          });
+          console.log(`✅ Detected search input: "${standaloneMatch[1]}"`);
+          return;
+        }
       }
     }
     
+    // ENHANCED: Parse ANY custom field entry with universal pattern
+    // This catches fields like: address, city, state, zipcode, company, etc.
+    const customFieldMatch = line.match(/(?:enter|fill|type|input|set)\s+(?:the\s+)?(?:value\s+)?(?:of\s+)?(\w+(?:\s+\w+)?)\s+(?:as|to|with|field)?\s*[""''""]([^""''"]+)[""''"]/i);
+    if (customFieldMatch) {
+      const fieldName = customFieldMatch[1].toLowerCase().replace(/\s+/g, '');
+      const value = customFieldMatch[2];
+      formData[fieldName] = value;
+      parsedActions.push({
+        type: 'enter',
+        field: fieldName,
+        value: value,
+        step: index + 1,
+        originalLine: line
+      });
+      console.log(`✅ Detected custom field "${fieldName}": "${value}"`);
+      return;
+    }
+    
     // ENHANCED: Parse select/dropdown actions with better patterns
-    // Supports: select "value" from field, choose "value" from dropdown, pick "value" in dropdown
     const selectMatch = line.match(/(?:select|choose|pick)\s+[""''""]([^""''"]+)[""''"]\s+(?:from|in)\s+(?:the\s+)?(\w+(?:\s+\w+)?)/i) ||
-                       line.match(/(?:select|choose|pick)\s+(?:the\s+)?(\w+(?:\s+\w+)?)\s+(?:as|to)\s+[""''""]([^""''"]+)[""''"]/i) ||
-                       line.match(/(?:choose|select)\s+[""''""]([^""''"]+)[""''"]\s+(?:from\s+)?(?:the\s+)?dropdown/i);
+                       line.match(/(?:select|choose|pick)\s+(?:the\s+)?(\w+(?:\s+\w+)?)\s+(?:as|to)\s+[""''""]([^""''"]+)[""''"]/i);
     if (selectMatch) {
-      let field = selectMatch[2] || selectMatch[1];
-      let value = selectMatch[1] || selectMatch[2];
-      
-      // If no field name found, use "dropdown" as default
-      if (!field || field === value) {
-        field = 'dropdown';
-      }
-      
+      const field = selectMatch[2] || selectMatch[1];
+      const value = selectMatch[1] || selectMatch[2];
       parsedActions.push({
         type: 'select',
         field: field.toLowerCase().replace(/\s+/g, ''),
@@ -2028,67 +2033,10 @@ function generateSelectCode(lines, action, varCounter) {
   const escapedValue = value.replace(/'/g, "\\'");
   
   const selectVarName = `${fieldName}Select_${varCounter}`;
-  
-  // Try multiple strategies for selecting from dropdown
-  lines.push(`  // Select "${escapedValue}" from ${fieldName}`);
-  lines.push(`  let selectionSuccess = false;`);
-  lines.push(``);
-  lines.push(`  // Strategy 1: Try standard HTML select element`);
-  lines.push(`  try {`);
-  lines.push(`    const ${selectVarName} = page.locator('select#${fieldName}, select[name="${fieldName}"]').first();`);
-  lines.push(`    const count = await ${selectVarName}.count();`);
-  lines.push(`    if (count > 0) {`);
-  lines.push(`      await ${selectVarName}.waitFor({ state: 'visible', timeout: 5000 });`);
-  lines.push(`      await ${selectVarName}.selectOption('${escapedValue}');`);
-  lines.push(`      console.log('✅ Selected "${escapedValue}" from ${fieldName} (HTML select)');`);
-  lines.push(`      selectionSuccess = true;`);
-  lines.push(`    }`);
-  lines.push(`  } catch (e) {`);
-  lines.push(`    // Continue to next strategy`);
-  lines.push(`  }`);
-  lines.push(``);
-  lines.push(`  // Strategy 2: Try clicking dropdown option by text (for custom dropdowns)`);
-  lines.push(`  if (!selectionSuccess) {`);
-  lines.push(`    try {`);
-  lines.push(`      // First, try to find and click the option directly`);
-  lines.push(`      const option = page.locator('[role="option"]:has-text("${escapedValue}"), li:has-text("${escapedValue}"), div:has-text("${escapedValue}"):visible').first();`);
-  lines.push(`      const optionCount = await option.count();`);
-  lines.push(`      if (optionCount > 0) {`);
-  lines.push(`        await option.waitFor({ state: 'visible', timeout: 5000 });`);
-  lines.push(`        await option.click();`);
-  lines.push(`        console.log('✅ Selected "${escapedValue}" from dropdown (custom dropdown)');`);
-  lines.push(`        selectionSuccess = true;`);
-  lines.push(`      }`);
-  lines.push(`    } catch (e) {`);
-  lines.push(`      // Continue to next strategy`);
-  lines.push(`    }`);
-  lines.push(`  }`);
-  lines.push(``);
-  lines.push(`  // Strategy 3: Try finding dropdown by label and then selecting option`);
-  lines.push(`  if (!selectionSuccess) {`);
-  lines.push(`    try {`);
-  lines.push(`      // Look for any dropdown/select element and click it`);
-  lines.push(`      const dropdownTrigger = page.locator('button[aria-haspopup="listbox"], button[aria-haspopup="menu"], [role="combobox"], .dropdown-toggle').first();`);
-  lines.push(`      const triggerCount = await dropdownTrigger.count();`);
-  lines.push(`      if (triggerCount > 0) {`);
-  lines.push(`        await dropdownTrigger.waitFor({ state: 'visible', timeout: 5000 });`);
-  lines.push(`        await dropdownTrigger.click();`);
-  lines.push(`        await page.waitForTimeout(500);`);
-  lines.push(`        // Now try to click the option`);
-  lines.push(`        const option = page.locator('[role="option"]:has-text("${escapedValue}"), li:has-text("${escapedValue}"), div:has-text("${escapedValue}"):visible').first();`);
-  lines.push(`        await option.waitFor({ state: 'visible', timeout: 5000 });`);
-  lines.push(`        await option.click();`);
-  lines.push(`        console.log('✅ Selected "${escapedValue}" from dropdown (after opening)');`);
-  lines.push(`        selectionSuccess = true;`);
-  lines.push(`      }`);
-  lines.push(`    } catch (e) {`);
-  lines.push(`      // Continue to next strategy`);
-  lines.push(`    }`);
-  lines.push(`  }`);
-  lines.push(``);
-  lines.push(`  if (!selectionSuccess) {`);
-  lines.push(`    throw new Error('Could not select "${escapedValue}" from ${fieldName}');`);
-  lines.push(`  }`);
+  lines.push(`  const ${selectVarName} = page.locator('select#${fieldName}, select[name="${fieldName}"]').first();`);
+  lines.push(`  await ${selectVarName}.waitFor({ state: 'visible', timeout: 10000 });`);
+  lines.push(`  await ${selectVarName}.selectOption('${escapedValue}');`);
+  lines.push(`  console.log('✅ Selected ${escapedValue} from ${fieldName}');`);
 }
 
 // Helper function to generate checkbox code
