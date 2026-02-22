@@ -1306,28 +1306,33 @@ function generateInstructionBasedTests(instructions, baseUrl) {
       console.log(`✅ Detected ${fieldName}: "${value}"`);
     }
     
-    // ENHANCED: Parse ANY custom field entry with universal pattern
-    // This catches fields like: address, city, state, zipcode, company, etc.
-    const customFieldMatch = line.match(/(?:enter|fill|type|input|set)\s+(?:the\s+)?(?:value\s+)?(?:of\s+)?(\w+(?:\s+\w+)?)\s+(?:as|to|with|field)?\s*[""''""]([^""''"]+)[""''"]/i);
-    if (customFieldMatch && !usernameMatch && !passwordMatch && !emailMatch && !phoneMatch && !nameMatch) {
-      const fieldName = customFieldMatch[1].toLowerCase().replace(/\s+/g, '');
-      const value = customFieldMatch[2];
-      formData[fieldName] = value;
-      parsedActions.push({
-        type: 'enter',
-        field: fieldName,
-        value: value,
-        step: index + 1,
-        originalLine: line
-      });
-      console.log(`✅ Detected custom field "${fieldName}": "${value}"`);
-    }
-    
     // ENHANCED: Parse type in search bar pattern: "type 'value' in search bar" OR "in search bar, type 'value'" OR "enter 'value' in search"
+    // Also detect standalone "Enter 'value'" if followed by "Click on Search button"
+    // CHECK THIS FIRST before custom field detection to avoid false matches
     const searchMatch = line.match(/(?:type|enter|fill)\s+[""''""]([^""''"]+)[""''"]\s+(?:in|into)\s+(?:the\s+)?(?:search\s+)?(?:bar|field)?/i) ||
                        line.match(/(?:in|into)\s+(?:the\s+)?(?:search\s+)?(?:bar|field),?\s+(?:type|enter|fill)\s+[""''""]([^""''"]+)[""''"]/i);
-    if (searchMatch && !customFieldMatch) {
-      const value = searchMatch[1];
+    
+    // Check if this is a standalone "Enter 'value'" that should be treated as search
+    let isStandaloneEnter = false;
+    if (line.match(/^(?:enter|type|fill)\s+[""''""]([^""''"]+)[""''"]/i) && 
+        !line.toLowerCase().includes('in ') && 
+        !line.toLowerCase().includes('into ') &&
+        !line.toLowerCase().includes('username') &&
+        !line.toLowerCase().includes('password') &&
+        !line.toLowerCase().includes('email') &&
+        !line.toLowerCase().includes('phone') &&
+        !line.toLowerCase().includes('name')) {
+      // Check if next line contains "search" or "click"
+      if (index + 1 < lines.length) {
+        const nextLine = lines[index + 1].toLowerCase();
+        isStandaloneEnter = nextLine.includes('search') || nextLine.includes('click');
+      }
+    }
+    
+    const standaloneEnterMatch = isStandaloneEnter ? line.match(/^(?:enter|type|fill)\s+[""''""]([^""''"]+)[""''"]/i) : null;
+    
+    if (searchMatch || standaloneEnterMatch) {
+      const value = searchMatch ? searchMatch[1] : standaloneEnterMatch[1];
       parsedActions.push({
         type: 'enter',
         field: 'search',
@@ -1336,6 +1341,23 @@ function generateInstructionBasedTests(instructions, baseUrl) {
         originalLine: line
       });
       console.log(`✅ Detected search input: "${value}"`);
+    } else {
+      // ENHANCED: Parse ANY custom field entry with universal pattern
+      // This catches fields like: address, city, state, zipcode, company, etc.
+      const customFieldMatch = line.match(/(?:enter|fill|type|input|set)\s+(?:the\s+)?(?:value\s+)?(?:of\s+)?(\w+(?:\s+\w+)?)\s+(?:as|to|with|field)?\s*[""''""]([^""''"]+)[""''"]/i);
+      if (customFieldMatch && !usernameMatch && !passwordMatch && !emailMatch && !phoneMatch && !nameMatch) {
+        const fieldName = customFieldMatch[1].toLowerCase().replace(/\s+/g, '');
+        const value = customFieldMatch[2];
+        formData[fieldName] = value;
+        parsedActions.push({
+          type: 'enter',
+          field: fieldName,
+          value: value,
+          step: index + 1,
+          originalLine: line
+        });
+        console.log(`✅ Detected custom field "${fieldName}": "${value}"`);
+      }
     }
     
     // ENHANCED: Parse select/dropdown actions with better patterns
